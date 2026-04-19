@@ -3,6 +3,7 @@ using FluentValidation.AspNetCore;
 using IntegrationApp.BackgroundServices;
 using IntegrationApp.Data;
 using IntegrationApp.Hubs;
+using IntegrationApp.Infrastructure;
 using IntegrationApp.Mappings;
 using IntegrationApp.Middleware;
 using IntegrationApp.Services;
@@ -12,6 +13,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Http.Resilience;
 using Microsoft.IdentityModel.Tokens;
 using Polly;
+using Scalar.AspNetCore;
 using Serilog;
 using Serilog.Events;
 using System.Text;
@@ -171,7 +173,7 @@ try
     builder.Services.AddAutoMapper(typeof(AutoMapperProfile));
 
     // ─────────────────────────────────────────────────────────────────────────
-    // CONTROLLERS + SWAGGER
+    // CONTROLLERS + SCALAR (OpenAPI nativo .NET 9)
     // ─────────────────────────────────────────────────────────────────────────
     builder.Services.AddControllers()
         .AddJsonOptions(opts =>
@@ -179,42 +181,22 @@ try
             opts.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
         });
 
-    builder.Services.AddEndpointsApiExplorer();
-    builder.Services.AddSwaggerGen(c =>
+    builder.Services.AddOpenApi("v1", options =>
     {
-        c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+        options.AddDocumentTransformer((doc, ctx, ct) =>
         {
-            Title = "IntegrationApp — API Gateway",
-            Version = "v1",
-            Description = "Capa de Integración del sistema Tienda de Radiadores. " +
-                          "Actúa como API Gateway entre Caja POS / Website y el Core backend."
-        });
-
-        // JWT en Swagger
-        c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
-        {
-            Name = "Authorization",
-            Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
-            Scheme = "Bearer",
-            BearerFormat = "JWT",
-            In = Microsoft.OpenApi.Models.ParameterLocation.Header,
-            Description = "Ingresa el token JWT. Ejemplo: Bearer {token}"
-        });
-
-        c.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
-        {
+            doc.Info = new()
             {
-                new Microsoft.OpenApi.Models.OpenApiSecurityScheme
-                {
-                    Reference = new Microsoft.OpenApi.Models.OpenApiReference
-                    {
-                        Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
-                        Id = "Bearer"
-                    }
-                },
-                Array.Empty<string>()
-            }
+                Title = "IntegrationApp — API Gateway",
+                Version = "v1",
+                Description = "Capa de Integración del sistema Tienda de Radiadores. " +
+                              "Actúa como API Gateway entre Caja POS / Website y el Core backend."
+            };
+            return Task.CompletedTask;
         });
+
+        // Soporte JWT Bearer en Scalar
+        options.AddDocumentTransformer<BearerSecuritySchemeTransformer>();
     });
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -247,11 +229,14 @@ try
     app.UseMiddleware<CorrelationIdMiddleware>();
     app.UseMiddleware<IntegrationLoggingMiddleware>();
 
-    app.UseSwagger();
-    app.UseSwaggerUI(c =>
+    // OpenAPI JSON + Scalar UI (solo en desarrollo; en producción se puede restringir)
+    app.MapOpenApi();
+    app.MapScalarApiReference(options =>
     {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "IntegrationApp v1");
-        c.RoutePrefix = "swagger";
+        options.Title = "IntegrationApp — API Gateway";
+        options.Theme = ScalarTheme.DeepSpace;
+        options.DefaultHttpClient = new(ScalarTarget.CSharp, ScalarClient.HttpClient);
+        options.AddPreferredSecuritySchemes("Bearer");
     });
 
     app.UseCors();
