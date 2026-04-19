@@ -1,34 +1,275 @@
+using FluentValidation;
+using FluentValidation.AspNetCore;
+using IntegrationApp.BackgroundServices;
+using IntegrationApp.Data;
+using IntegrationApp.Hubs;
+using IntegrationApp.Mappings;
+using IntegrationApp.Middleware;
+using IntegrationApp.Services;
+using IntegrationApp.Validators;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Http.Resilience;
+using Microsoft.IdentityModel.Tokens;
+using Polly;
+using Serilog;
+using Serilog.Events;
+using System.Text;
 
-namespace IntegrationApp
+// ─────────────────────────────────────────────────────────────────────────────
+// BOOTSTRAP SERILOG (antes del host para capturar errores de startup)
+// ─────────────────────────────────────────────────────────────────────────────
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Information()
+    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+    .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
+    .Enrich.FromLogContext()
+    .Enrich.WithProperty("Application", "IntegrationApp")
+    .Enrich.WithProperty("Layer", "Integracion")
+    .WriteTo.Console()
+    .CreateBootstrapLogger();
+
+try
 {
-    public class Program
+    Log.Information("=== Iniciando IntegrationApp ===");
+
+    var builder = WebApplication.CreateBuilder(args);
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // SERILOG FULL (reconfigura con sinks desde appsettings)
+    // ─────────────────────────────────────────────────────────────────────────
+    builder.Host.UseSerilog((ctx, services, config) =>
     {
-        public static void Main(string[] args)
+        var seqUrl = ctx.Configuration["Serilog:SeqUrl"] ?? "http://localhost:5341";
+        var connStr = ctx.Configuration.GetConnectionString("IntegrationDb")!;
+
+        config
+            .MinimumLevel.Information()
+            .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+            .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
+            .Enrich.FromLogContext()
+            .Enrich.WithProperty("Application", "IntegrationApp")
+            .Enrich.WithProperty("Layer", "Integracion")
+            .WriteTo.Console()
+            .WriteTo.Seq(seqUrl, restrictedToMinimumLevel: LogEventLevel.Information)
+            .WriteTo.MSSqlServer(connStr,
+                sinkOptions: new Serilog.Sinks.MSSqlServer.MSSqlServerSinkOptions
+                {
+                    TableName = "SerilogEvents",
+                    AutoCreateSqlTable = true
+                },
+                restrictedToMinimumLevel: LogEventLevel.Warning);
+    });
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // NSERVICEBUS
+    // ─────────────────────────────────────────────────────────────────────────
+    builder.Host.UseNServiceBus(ctx =>
+    {
+        var endpointConfig = new EndpointConfiguration("IntegrationApp");
+
+        var transport = endpointConfig.UseTransport<LearningTransport>();
+
+        endpointConfig.EnableInstallers();
+        endpointConfig.UseSerialization<NServiceBus.SystemJsonSerializer>();
+
+        // Saga persistence (Learning para dev)
+        var persistence = endpointConfig.UsePersistence<LearningPersistence>();
+
+        // Dead letter: mensajes fallidos van a error queue
+        endpointConfig.SendFailedMessagesTo("IntegrationApp.Error");
+
+        return endpointConfig;
+    });
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // ENTITY FRAMEWORK CORE
+    // ─────────────────────────────────────────────────────────────────────────
+    var connString = builder.Configuration.GetConnectionString("IntegrationDb")
+        ?? throw new InvalidOperationException("Connection string 'IntegrationDb' not found.");
+
+    builder.Services.AddDbContext<IntegrationDbContext>(options =>
+        options.UseSqlServer(connString));
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // HTTP CLIENT + POLLY v8 RESILIENCE PIPELINE
+    // ─────────────────────────────────────────────────────────────────────────
+    var coreUrl = builder.Configuration["CoreApi:BaseUrl"]
+        ?? throw new InvalidOperationException("CoreApi:BaseUrl no configurado");
+
+    builder.Services.AddHttpClient("CoreApi", c =>
+    {
+        c.BaseAddress = new Uri(coreUrl);
+        c.Timeout = TimeSpan.FromSeconds(30);
+        c.DefaultRequestHeaders.Add("X-Source", "IntegrationApp");
+    })
+    .AddStandardResilienceHandler(options =>
+    {
+        options.Retry.MaxRetryAttempts = 2;
+        options.Retry.Delay = TimeSpan.FromSeconds(1);
+        options.Retry.BackoffType = DelayBackoffType.Exponential;
+        options.Retry.UseJitter = true;
+
+        options.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(30);
+        options.CircuitBreaker.FailureRatio = 0.5;
+        options.CircuitBreaker.MinimumThroughput = 3;
+        options.CircuitBreaker.BreakDuration = TimeSpan.FromSeconds(
+            builder.Configuration.GetValue<int>("CoreApi:CircuitBreakerDurationSeconds", 60));
+
+        options.AttemptTimeout.Timeout = TimeSpan.FromSeconds(15);
+    });
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // AUTENTICACIÓN JWT (validar tokens del Core)
+    // ─────────────────────────────────────────────────────────────────────────
+    var jwtKey = builder.Configuration["Jwt:Key"]
+        ?? throw new InvalidOperationException("Jwt:Key no configurado");
+
+    builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+        .AddJwtBearer(options =>
         {
-            var builder = WebApplication.CreateBuilder(args);
-
-            // Add services to the container.
-
-            builder.Services.AddControllers();
-            // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-            builder.Services.AddOpenApi();
-
-            var app = builder.Build();
-
-            // Configure the HTTP request pipeline.
-            if (app.Environment.IsDevelopment())
+            options.TokenValidationParameters = new TokenValidationParameters
             {
-                app.MapOpenApi();
+                ValidateIssuer = true,
+                ValidateAudience = true,
+                ValidateLifetime = true,
+                ValidateIssuerSigningKey = true,
+                ValidIssuer = builder.Configuration["Jwt:Issuer"],
+                ValidAudience = builder.Configuration["Jwt:Audience"],
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+            };
+        });
+
+    builder.Services.AddAuthorization();
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // SIGNALR
+    // ─────────────────────────────────────────────────────────────────────────
+    builder.Services.AddSignalR();
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // SERVICIOS DE INTEGRACIÓN
+    // ─────────────────────────────────────────────────────────────────────────
+    builder.Services.AddSingleton<ICircuitBreakerStateService, CircuitBreakerStateService>();
+    builder.Services.AddScoped<ICoreApiClient, CoreApiClient>();
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // BACKGROUND SERVICES
+    // ─────────────────────────────────────────────────────────────────────────
+    builder.Services.AddHostedService<CoreHealthCheckService>();
+    builder.Services.AddHostedService<MirrorSyncService>();
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // FLUENTVALIDATION
+    // ─────────────────────────────────────────────────────────────────────────
+    builder.Services.AddFluentValidationAutoValidation();
+    builder.Services.AddValidatorsFromAssemblyContaining<LoginRequestValidator>();
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // AUTOMAPPER
+    // ─────────────────────────────────────────────────────────────────────────
+    builder.Services.AddAutoMapper(typeof(AutoMapperProfile));
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // CONTROLLERS + SWAGGER
+    // ─────────────────────────────────────────────────────────────────────────
+    builder.Services.AddControllers()
+        .AddJsonOptions(opts =>
+        {
+            opts.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+        });
+
+    builder.Services.AddEndpointsApiExplorer();
+    builder.Services.AddSwaggerGen(c =>
+    {
+        c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+        {
+            Title = "IntegrationApp — API Gateway",
+            Version = "v1",
+            Description = "Capa de Integración del sistema Tienda de Radiadores. " +
+                          "Actúa como API Gateway entre Caja POS / Website y el Core backend."
+        });
+
+        // JWT en Swagger
+        c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+        {
+            Name = "Authorization",
+            Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
+            Scheme = "Bearer",
+            BearerFormat = "JWT",
+            In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+            Description = "Ingresa el token JWT. Ejemplo: Bearer {token}"
+        });
+
+        c.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+        {
+            {
+                new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+                {
+                    Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                    {
+                        Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                        Id = "Bearer"
+                    }
+                },
+                Array.Empty<string>()
             }
+        });
+    });
 
-            app.UseHttpsRedirection();
+    // ─────────────────────────────────────────────────────────────────────────
+    // HEALTH CHECKS
+    // ─────────────────────────────────────────────────────────────────────────
+    builder.Services.AddHealthChecks()
+        .AddSqlServer(connString, name: "sqlserver", tags: ["db", "ready"]);
 
-            app.UseAuthorization();
+    builder.Services.AddMemoryCache();
+    builder.Services.AddCors(options =>
+    {
+        options.AddDefaultPolicy(policy =>
+            policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
+    });
 
+    // ═════════════════════════════════════════════════════════════════════════
+    var app = builder.Build();
+    // ═════════════════════════════════════════════════════════════════════════
 
-            app.MapControllers();
-
-            app.Run();
-        }
+    // Auto-migrar BD en startup (dev convenience)
+    using (var scope = app.Services.CreateScope())
+    {
+        var db = scope.ServiceProvider.GetRequiredService<IntegrationDbContext>();
+        db.Database.Migrate();
+        Log.Information("Migraciones EF Core aplicadas correctamente");
     }
+
+    // Pipeline HTTP
+    app.UseSerilogRequestLogging();
+    app.UseMiddleware<CorrelationIdMiddleware>();
+    app.UseMiddleware<IntegrationLoggingMiddleware>();
+
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "IntegrationApp v1");
+        c.RoutePrefix = "swagger";
+    });
+
+    app.UseCors();
+    app.UseAuthentication();
+    app.UseAuthorization();
+
+    app.MapControllers();
+    app.MapHub<NotificacionesHub>("/hubs/notificaciones");
+    app.MapHealthChecks("/health/ready");
+
+    Log.Information("IntegrationApp iniciado en: {Urls}", string.Join(", ", app.Urls));
+    app.Run();
+}
+catch (Exception ex)
+{
+    Log.Fatal(ex, "IntegrationApp terminó inesperadamente durante el startup");
+}
+finally
+{
+    Log.CloseAndFlush();
 }

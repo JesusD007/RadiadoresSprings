@@ -6,10 +6,55 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>4c9ed899-cf11-4025-9b2e-d148f2eb2782</UserSecretsId>
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+    <RootNamespace>IntegrationApp</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.14" />
+    <!-- ASP.NET Core / OpenAPI -->
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.4" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="7.3.1" />
+
+    <!-- Entity Framework Core -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.4" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.4">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.4">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+
+    <!-- NServiceBus -->
+    <PackageReference Include="NServiceBus" Version="9.2.2" />
+    <PackageReference Include="NServiceBus.Extensions.Hosting" Version="3.0.0" />
+
+    <!-- Polly v8 / Resiliencia -->
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="9.4.0" />
+
+    <!-- JWT Authentication -->
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.4" />
+
+    <!-- Serilog -->
+    <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
+    <PackageReference Include="Serilog.Sinks.MSSqlServer" Version="8.1.0" />
+    <PackageReference Include="Serilog.Sinks.Seq" Version="9.0.0" />
+
+    <!-- FluentValidation -->
+    <PackageReference Include="FluentValidation.AspNetCore" Version="11.3.0" />
+
+    <!-- AutoMapper -->
+    <PackageReference Include="AutoMapper" Version="12.0.1" />
+    <PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="12.0.1" />
+
+    <!-- Health Checks -->
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="9.0.4" />
+    <PackageReference Include="AspNetCore.HealthChecks.SqlServer" Version="9.0.0" />
+
+    <!-- Caching / Memory -->
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="9.0.4" />
+
+    <!-- Docker Tools (optional) -->
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.22.1" />
   </ItemGroup>
 
