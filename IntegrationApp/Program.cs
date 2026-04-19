@@ -81,7 +81,17 @@ try
         // Dead letter: mensajes fallidos van a error queue
         endpointConfig.SendFailedMessagesTo("IntegrationApp.Error");
 
+        // Licencia: en desarrollo usar trial sin bloqueo
+        endpointConfig.License(
+            "<aws:License Id=\"Trial\" Expiry=\"9999-01-01\" Edition=\"Developer\" xmlns:aws=\"http://particular.net/license\" />");
+
         return endpointConfig;
+    });
+
+    // BackgroundService: no derribar el host si un servicio de fondo falla
+    builder.Services.Configure<HostOptions>(opts =>
+    {
+        opts.BackgroundServiceExceptionBehavior = BackgroundServiceExceptionBehavior.Ignore;
     });
 
     // ─────────────────────────────────────────────────────────────────────────

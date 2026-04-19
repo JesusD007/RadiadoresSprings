@@ -61,9 +61,15 @@ public class CoreHealthCheckService : BackgroundService
                 HandleFailure(failureThreshold, $"HTTP {(int)response.StatusCode}");
             }
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or OperationCanceledException)
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
-            HandleFailure(failureThreshold, ex.Message);
+            // Shutdown normal — no loguear como error
+        }
+        catch (Exception ex)
+        {
+            // Captura Polly BrokenCircuitException, HttpRequestException, SocketException, etc.
+            // NUNCA propagar al host para evitar crash del proceso.
+            HandleFailure(failureThreshold, ex.GetType().Name + ": " + ex.Message.Split('\n')[0]);
         }
     }
 
