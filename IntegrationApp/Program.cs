@@ -4,7 +4,6 @@ using IntegrationApp.BackgroundServices;
 using IntegrationApp.Data;
 using IntegrationApp.Hubs;
 using IntegrationApp.Infrastructure;
-using IntegrationApp.Mappings;
 using IntegrationApp.Middleware;
 using IntegrationApp.Services;
 using IntegrationApp.Validators;
@@ -36,6 +35,54 @@ try
     Log.Information("=== Iniciando IntegrationApp ===");
 
     var builder = WebApplication.CreateBuilder(args);
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // LOCALDB FILES — crea la BD en DataBases/Integracion/ si aún no existe
+    // ─────────────────────────────────────────────────────────────────────────
+    var dataDir = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "DataBases", "Integracion"));
+    Directory.CreateDirectory(dataDir);
+
+    var targetMdf = Path.Combine(dataDir, "IntegrationAppDb.mdf");
+    var targetLdf = Path.Combine(dataDir, "IntegrationAppDb_log.ldf");
+
+    try
+    {
+        using var masterConn = new Microsoft.Data.SqlClient.SqlConnection(
+            "Server=(localdb)\\MSSQLLocalDB;Database=master;Trusted_Connection=True;");
+        masterConn.Open();
+
+        // Si la BD está registrada pero el .mdf no está en nuestro target, la eliminamos
+        using var checkCmd = masterConn.CreateCommand();
+        checkCmd.CommandText = "SELECT DB_ID('IntegrationAppDb')";
+        var dbId = checkCmd.ExecuteScalar();
+        var dbExists = dbId is not DBNull && dbId is not null;
+
+        if (dbExists && !File.Exists(targetMdf))
+        {
+            // sp_detach_db funciona aunque los archivos físicos no existan
+            using var detachCmd = masterConn.CreateCommand();
+            detachCmd.CommandText = "EXEC master.sys.sp_detach_db @dbname = N'IntegrationAppDb', @skipchecks = N'true'";
+            detachCmd.ExecuteNonQuery();
+            dbExists = false;
+            Log.Information("[DB] BD anterior desvinculada del catálogo LocalDB");
+        }
+
+        if (!dbExists)
+        {
+            using var createCmd = masterConn.CreateCommand();
+            createCmd.CommandText = $"""
+                CREATE DATABASE IntegrationAppDb
+                ON  PRIMARY (NAME = N'IntegrationAppDb', FILENAME = N'{targetMdf}')
+                LOG ON      (NAME = N'IntegrationAppDb_log', FILENAME = N'{targetLdf}')
+                """;
+            createCmd.ExecuteNonQuery();
+            Log.Information("[DB] Base de datos creada en {Dir}", dataDir);
+        }
+    }
+    catch (Exception ex)
+    {
+        Log.Warning(ex, "[DB] No se pudo gestionar la BD en la carpeta del proyecto");
+    }
 
     // ─────────────────────────────────────────────────────────────────────────
     // SERILOG FULL (reconfigura con sinks desde appsettings)
@@ -92,6 +139,18 @@ try
     builder.Services.Configure<HostOptions>(opts =>
     {
         opts.BackgroundServiceExceptionBehavior = BackgroundServiceExceptionBehavior.Ignore;
+    });
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // FORWARDED HEADERS (ngrok / reverse proxy)
+    // ─────────────────────────────────────────────────────────────────────────
+    builder.Services.Configure<ForwardedHeadersOptions>(opts =>
+    {
+        opts.ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedFor
+                              | Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedProto
+                              | Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedHost;
+        opts.KnownNetworks.Clear();
+        opts.KnownProxies.Clear();
     });
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -178,11 +237,6 @@ try
     builder.Services.AddValidatorsFromAssemblyContaining<LoginRequestValidator>();
 
     // ─────────────────────────────────────────────────────────────────────────
-    // AUTOMAPPER
-    // ─────────────────────────────────────────────────────────────────────────
-    builder.Services.AddAutoMapper(typeof(AutoMapperProfile));
-
-    // ─────────────────────────────────────────────────────────────────────────
     // CONTROLLERS + SCALAR (OpenAPI nativo .NET 9)
     // ─────────────────────────────────────────────────────────────────────────
     builder.Services.AddControllers()
@@ -235,6 +289,7 @@ try
     }
 
     // Pipeline HTTP
+    app.UseForwardedHeaders();
     app.UseSerilogRequestLogging();
     app.UseMiddleware<CorrelationIdMiddleware>();
     app.UseMiddleware<IntegrationLoggingMiddleware>();

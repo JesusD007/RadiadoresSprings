@@ -5,7 +5,6 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>4c9ed899-cf11-4025-9b2e-d148f2eb2782</UserSecretsId>
-    <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
     <RootNamespace>IntegrationApp</RootNamespace>
   </PropertyGroup>
 
@@ -43,10 +42,6 @@
     <!-- FluentValidation -->
     <PackageReference Include="FluentValidation.AspNetCore" Version="11.3.0" />
 
-    <!-- AutoMapper -->
-    <PackageReference Include="AutoMapper" Version="12.0.1" />
-    <PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="12.0.1" />
-
     <!-- Health Checks -->
     <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="9.0.4" />
     <PackageReference Include="AspNetCore.HealthChecks.SqlServer" Version="9.0.0" />
@@ -54,8 +49,6 @@
     <!-- Caching / Memory -->
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="9.0.4" />
 
-    <!-- Docker Tools (optional) -->
-    <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.22.1" />
   </ItemGroup>
 
 </Project>

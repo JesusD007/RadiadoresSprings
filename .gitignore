@@ -1,6 +1,6 @@
 ## ---------------------------------------------------------------
 ## .gitignore para RadiadoresSprings
-## Solución .NET / C# / ASP.NET con Docker
+## Solución .NET / C# / ASP.NET Core — Azure App Service
 ## ---------------------------------------------------------------
 
 # ========================
@@ -92,10 +92,24 @@ secrets.json
 !.env.example
 
 # ========================
-# Docker
+# Azure Publish Profiles
 # ========================
-# (Mantener Dockerfile y .dockerignore en el repo)
-docker-compose.override.yml
+# Los perfiles .pubxml se ignoran por contener datos de conexión sensibles.
+# Sólo se versiona el archivo .pubxml si no lleva credenciales embebidas.
+**/PublishProfiles/*.pubxml
+**/PublishProfiles/*.pubxml.user
+
+# ========================
+# Bases de datos locales (LocalDB / SQL Server)
+# ========================
+DataBases/**/*.mdf
+DataBases/**/*.ldf
+DataBases/**/*.ndf
+!DataBases/**/.gitkeep
+**/DataBases/**/*.mdf
+**/DataBases/**/*.ldf
+**/DataBases/**/*.ndf
+!**/DataBases/**/.gitkeep
 
 # ========================
 # Logs y datos temporales

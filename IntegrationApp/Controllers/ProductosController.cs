@@ -1,6 +1,6 @@
-using AutoMapper;
 using IntegrationApp.Contracts.Responses.Productos;
 using IntegrationApp.Data;
+using IntegrationApp.Mappings;
 using IntegrationApp.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -15,14 +15,13 @@ public class ProductosController : ControllerBase
     private readonly ICoreApiClient _core;
     private readonly ICircuitBreakerStateService _cbState;
     private readonly IntegrationDbContext _db;
-    private readonly IMapper _mapper;
     private readonly ILogger<ProductosController> _logger;
     private static readonly JsonSerializerOptions _json = new() { PropertyNameCaseInsensitive = true };
 
     public ProductosController(ICoreApiClient core, ICircuitBreakerStateService cbState,
-        IntegrationDbContext db, IMapper mapper, ILogger<ProductosController> logger)
+        IntegrationDbContext db, ILogger<ProductosController> logger)
     {
-        _core = core; _cbState = cbState; _db = db; _mapper = mapper; _logger = logger;
+        _core = core; _cbState = cbState; _db = db; _logger = logger;
     }
 
     /// <summary>Lista paginada de productos. Sirve desde mirror en modo offline.</summary>
@@ -76,7 +75,7 @@ public class ProductosController : ControllerBase
 
         return Ok(new ProductoPagedResult
         {
-            Items = _mapper.Map<List<ProductoResumenDto>>(items),
+            Items = items.Select(p => p.ToResumenDto()).ToList(),
             Total = total,
             Page = page,
             PageSize = pageSize,
@@ -112,7 +111,7 @@ public class ProductosController : ControllerBase
         var producto = await _db.ProductosMirror.FindAsync([id], ct);
         if (producto is null) return NotFound(new { error = "Producto no encontrado" });
 
-        return Ok(_mapper.Map<ProductoDetalleDto>(producto));
+        return Ok(producto.ToDetalleDto());
     }
 
     /// <summary>Lista de servicios ofrecidos. Proxy hacia Core.</summary>
