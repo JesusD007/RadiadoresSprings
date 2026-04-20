@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace IntegrationApp.Migrations
 {
     [DbContext(typeof(IntegrationDbContext))]
-    [Migration("20260420032031_InitialCreate")]
+    [Migration("20260420040411_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -105,10 +105,10 @@ namespace IntegrationApp.Migrations
                         .HasDefaultValue("Integracion");
 
                     b.Property<string>("RequestJson")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<string>("ResponseJson")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<string>("UserId")
                         .HasMaxLength(100)
@@ -208,7 +208,7 @@ namespace IntegrationApp.Migrations
 
                     b.Property<string>("LineasJson")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<string>("MetodoPago")
                         .IsRequired()

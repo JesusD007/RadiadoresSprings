@@ -41,8 +41,8 @@ public class IntegrationDbContext : DbContext
             e.Property(x => x.CorrelationId).HasMaxLength(50).IsRequired();
             e.Property(x => x.UserId).HasMaxLength(100);
             e.Property(x => x.Layer).HasMaxLength(20).HasDefaultValue("Integracion");
-            e.Property(x => x.RequestJson).HasColumnType("nvarchar(max)");
-            e.Property(x => x.ResponseJson).HasColumnType("nvarchar(max)");
+            e.Property(x => x.RequestJson).HasColumnType("text");
+            e.Property(x => x.ResponseJson).HasColumnType("text");
             e.HasIndex(x => x.CorrelationId);
             e.HasIndex(x => x.Fecha);
         });
@@ -70,7 +70,7 @@ public class IntegrationDbContext : DbContext
             e.Property(x => x.MetodoPago).HasMaxLength(30).IsRequired();
             e.Property(x => x.MontoTotal).HasPrecision(18, 2);
             e.Property(x => x.MontoRecibido).HasPrecision(18, 2);
-            e.Property(x => x.LineasJson).HasColumnType("nvarchar(max)").IsRequired();
+            e.Property(x => x.LineasJson).HasColumnType("text").IsRequired();
             e.Property(x => x.Estado).HasMaxLength(20).HasDefaultValue("Pendiente");
             e.HasIndex(x => x.IdTransaccionLocal).IsUnique();
             e.HasIndex(x => x.Estado);
