@@ -71,6 +71,7 @@ try
 
             endpointConfig.EnableInstallers();
             endpointConfig.UseSerialization<NServiceBus.SystemJsonSerializer>();
+            endpointConfig.DisableFeature<NServiceBus.Features.Sagas>();
             endpointConfig.SendFailedMessagesTo("IntegrationApp.Error");
 
             endpointConfig.License(
