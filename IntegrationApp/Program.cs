@@ -37,51 +37,52 @@ try
     var builder = WebApplication.CreateBuilder(args);
 
     // ─────────────────────────────────────────────────────────────────────────
-    // LOCALDB FILES — crea la BD en DataBases/Integracion/ si aún no existe
+    // LOCALDB FILES — solo en Development; en producción usa la connection string del entorno
     // ─────────────────────────────────────────────────────────────────────────
-    var dataDir = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "DataBases", "Integracion"));
-    Directory.CreateDirectory(dataDir);
-
-    var targetMdf = Path.Combine(dataDir, "IntegrationAppDb.mdf");
-    var targetLdf = Path.Combine(dataDir, "IntegrationAppDb_log.ldf");
-
-    try
+    if (builder.Environment.IsDevelopment())
     {
-        using var masterConn = new Microsoft.Data.SqlClient.SqlConnection(
-            "Server=(localdb)\\MSSQLLocalDB;Database=master;Trusted_Connection=True;");
-        masterConn.Open();
+        var dataDir = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "DataBases", "Integracion"));
+        Directory.CreateDirectory(dataDir);
 
-        // Si la BD está registrada pero el .mdf no está en nuestro target, la eliminamos
-        using var checkCmd = masterConn.CreateCommand();
-        checkCmd.CommandText = "SELECT DB_ID('IntegrationAppDb')";
-        var dbId = checkCmd.ExecuteScalar();
-        var dbExists = dbId is not DBNull && dbId is not null;
+        var targetMdf = Path.Combine(dataDir, "IntegrationAppDb.mdf");
+        var targetLdf = Path.Combine(dataDir, "IntegrationAppDb_log.ldf");
 
-        if (dbExists && !File.Exists(targetMdf))
+        try
         {
-            // sp_detach_db funciona aunque los archivos físicos no existan
-            using var detachCmd = masterConn.CreateCommand();
-            detachCmd.CommandText = "EXEC master.sys.sp_detach_db @dbname = N'IntegrationAppDb', @skipchecks = N'true'";
-            detachCmd.ExecuteNonQuery();
-            dbExists = false;
-            Log.Information("[DB] BD anterior desvinculada del catálogo LocalDB");
-        }
+            using var masterConn = new Microsoft.Data.SqlClient.SqlConnection(
+                "Server=(localdb)\\MSSQLLocalDB;Database=master;Trusted_Connection=True;");
+            masterConn.Open();
 
-        if (!dbExists)
-        {
-            using var createCmd = masterConn.CreateCommand();
-            createCmd.CommandText = $"""
-                CREATE DATABASE IntegrationAppDb
-                ON  PRIMARY (NAME = N'IntegrationAppDb', FILENAME = N'{targetMdf}')
-                LOG ON      (NAME = N'IntegrationAppDb_log', FILENAME = N'{targetLdf}')
-                """;
-            createCmd.ExecuteNonQuery();
-            Log.Information("[DB] Base de datos creada en {Dir}", dataDir);
+            using var checkCmd = masterConn.CreateCommand();
+            checkCmd.CommandText = "SELECT DB_ID('IntegrationAppDb')";
+            var dbId = checkCmd.ExecuteScalar();
+            var dbExists = dbId is not DBNull && dbId is not null;
+
+            if (dbExists && !File.Exists(targetMdf))
+            {
+                using var detachCmd = masterConn.CreateCommand();
+                detachCmd.CommandText = "EXEC master.sys.sp_detach_db @dbname = N'IntegrationAppDb', @skipchecks = N'true'";
+                detachCmd.ExecuteNonQuery();
+                dbExists = false;
+                Log.Information("[DB] BD anterior desvinculada del catálogo LocalDB");
+            }
+
+            if (!dbExists)
+            {
+                using var createCmd = masterConn.CreateCommand();
+                createCmd.CommandText = $"""
+                    CREATE DATABASE IntegrationAppDb
+                    ON  PRIMARY (NAME = N'IntegrationAppDb', FILENAME = N'{targetMdf}')
+                    LOG ON      (NAME = N'IntegrationAppDb_log', FILENAME = N'{targetLdf}')
+                    """;
+                createCmd.ExecuteNonQuery();
+                Log.Information("[DB] Base de datos creada en {Dir}", dataDir);
+            }
         }
-    }
-    catch (Exception ex)
-    {
-        Log.Warning(ex, "[DB] No se pudo gestionar la BD en la carpeta del proyecto");
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "[DB] No se pudo gestionar la BD en la carpeta del proyecto");
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
