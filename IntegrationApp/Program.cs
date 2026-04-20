@@ -69,9 +69,18 @@ try
             transport.UseConventionalRoutingTopology(QueueType.Quorum);
             transport.ConnectionString(rabbitMqUrl);
 
+            var sqlPersistence = endpointConfig.UsePersistence<SqlPersistence>();
+            sqlPersistence.SqlDialect<SqlDialect.PostgreSql>();
+            var connStr = ctx.Configuration.GetConnectionString("IntegrationDb")!;
+            sqlPersistence.ConnectionBuilder(() =>
+            {
+                var conn = new Npgsql.NpgsqlConnection(connStr);
+                conn.Open();
+                return conn;
+            });
+
             endpointConfig.EnableInstallers();
             endpointConfig.UseSerialization<NServiceBus.SystemJsonSerializer>();
-            endpointConfig.DisableFeature<NServiceBus.Features.Sagas>();
             endpointConfig.SendFailedMessagesTo("IntegrationApp.Error");
 
             endpointConfig.License(
