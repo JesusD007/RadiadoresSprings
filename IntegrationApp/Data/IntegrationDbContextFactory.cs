@@ -11,8 +11,9 @@ public class IntegrationDbContextFactory : IDesignTimeDbContextFactory<Integrati
     public IntegrationDbContext CreateDbContext(string[] args)
     {
         var optionsBuilder = new DbContextOptionsBuilder<IntegrationDbContext>();
-        optionsBuilder.UseSqlServer(
-            "Server=(localdb)\\MSSQLLocalDB;Database=IntegrationAppDb;Trusted_Connection=True;MultipleActiveResultSets=True;");
+        optionsBuilder.UseNpgsql(
+            Environment.GetEnvironmentVariable("ConnectionStrings__IntegrationDb")
+            ?? "Host=localhost;Database=integrationdb;Username=postgres;Password=postgres;");
 
         return new IntegrationDbContext(optionsBuilder.Options);
     }

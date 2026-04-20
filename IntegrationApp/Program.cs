@@ -37,55 +37,6 @@ try
     var builder = WebApplication.CreateBuilder(args);
 
     // ─────────────────────────────────────────────────────────────────────────
-    // LOCALDB FILES — solo en Development; en producción usa la connection string del entorno
-    // ─────────────────────────────────────────────────────────────────────────
-    if (builder.Environment.IsDevelopment())
-    {
-        var dataDir = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "DataBases", "Integracion"));
-        Directory.CreateDirectory(dataDir);
-
-        var targetMdf = Path.Combine(dataDir, "IntegrationAppDb.mdf");
-        var targetLdf = Path.Combine(dataDir, "IntegrationAppDb_log.ldf");
-
-        try
-        {
-            using var masterConn = new Microsoft.Data.SqlClient.SqlConnection(
-                "Server=(localdb)\\MSSQLLocalDB;Database=master;Trusted_Connection=True;");
-            masterConn.Open();
-
-            using var checkCmd = masterConn.CreateCommand();
-            checkCmd.CommandText = "SELECT DB_ID('IntegrationAppDb')";
-            var dbId = checkCmd.ExecuteScalar();
-            var dbExists = dbId is not DBNull && dbId is not null;
-
-            if (dbExists && !File.Exists(targetMdf))
-            {
-                using var detachCmd = masterConn.CreateCommand();
-                detachCmd.CommandText = "EXEC master.sys.sp_detach_db @dbname = N'IntegrationAppDb', @skipchecks = N'true'";
-                detachCmd.ExecuteNonQuery();
-                dbExists = false;
-                Log.Information("[DB] BD anterior desvinculada del catálogo LocalDB");
-            }
-
-            if (!dbExists)
-            {
-                using var createCmd = masterConn.CreateCommand();
-                createCmd.CommandText = $"""
-                    CREATE DATABASE IntegrationAppDb
-                    ON  PRIMARY (NAME = N'IntegrationAppDb', FILENAME = N'{targetMdf}')
-                    LOG ON      (NAME = N'IntegrationAppDb_log', FILENAME = N'{targetLdf}')
-                    """;
-                createCmd.ExecuteNonQuery();
-                Log.Information("[DB] Base de datos creada en {Dir}", dataDir);
-            }
-        }
-        catch (Exception ex)
-        {
-            Log.Warning(ex, "[DB] No se pudo gestionar la BD en la carpeta del proyecto");
-        }
-    }
-
-    // ─────────────────────────────────────────────────────────────────────────
     // SERILOG FULL (reconfigura con sinks desde appsettings)
     // ─────────────────────────────────────────────────────────────────────────
     builder.Host.UseSerilog((ctx, services, config) =>
@@ -101,14 +52,7 @@ try
             .Enrich.WithProperty("Application", "IntegrationApp")
             .Enrich.WithProperty("Layer", "Integracion")
             .WriteTo.Console()
-            .WriteTo.Seq(seqUrl, restrictedToMinimumLevel: LogEventLevel.Information)
-            .WriteTo.MSSqlServer(connStr,
-                sinkOptions: new Serilog.Sinks.MSSqlServer.MSSqlServerSinkOptions
-                {
-                    TableName = "SerilogEvents",
-                    AutoCreateSqlTable = true
-                },
-                restrictedToMinimumLevel: LogEventLevel.Warning);
+            .WriteTo.Seq(seqUrl, restrictedToMinimumLevel: LogEventLevel.Information);
     });
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -161,7 +105,7 @@ try
         ?? throw new InvalidOperationException("Connection string 'IntegrationDb' not found.");
 
     builder.Services.AddDbContext<IntegrationDbContext>(options =>
-        options.UseSqlServer(connString));
+        options.UseNpgsql(connString));
 
     // ─────────────────────────────────────────────────────────────────────────
     // HTTP CLIENT + POLLY v8 RESILIENCE PIPELINE
@@ -268,7 +212,7 @@ try
     // HEALTH CHECKS
     // ─────────────────────────────────────────────────────────────────────────
     builder.Services.AddHealthChecks()
-        .AddSqlServer(connString, name: "sqlserver", tags: ["db", "ready"]);
+        .AddNpgSql(connString, tags: ["db", "ready"]);
 
     builder.Services.AddMemoryCache();
     builder.Services.AddCors(options =>
