@@ -56,29 +56,33 @@ try
     });
 
     // ─────────────────────────────────────────────────────────────────────────
-    // NSERVICEBUS
+    // NSERVICEBUS — solo si RabbitMQ está configurado
     // ─────────────────────────────────────────────────────────────────────────
-    builder.Host.UseNServiceBus(ctx =>
+    var rabbitMqUrl = builder.Configuration["NServiceBus:RabbitMqUrl"];
+    if (!string.IsNullOrEmpty(rabbitMqUrl))
     {
-        var endpointConfig = new EndpointConfiguration("IntegrationApp");
+        builder.Host.UseNServiceBus(ctx =>
+        {
+            var endpointConfig = new EndpointConfiguration("IntegrationApp");
 
-        var transport = endpointConfig.UseTransport<LearningTransport>();
+            var transport = endpointConfig.UseTransport<RabbitMQTransport>();
+            transport.UseConventionalRoutingTopology(QueueType.Quorum);
+            transport.ConnectionString(rabbitMqUrl);
 
-        endpointConfig.EnableInstallers();
-        endpointConfig.UseSerialization<NServiceBus.SystemJsonSerializer>();
+            endpointConfig.EnableInstallers();
+            endpointConfig.UseSerialization<NServiceBus.SystemJsonSerializer>();
+            endpointConfig.SendFailedMessagesTo("IntegrationApp.Error");
 
-        // Saga persistence (Learning para dev)
-        var persistence = endpointConfig.UsePersistence<LearningPersistence>();
+            endpointConfig.License(
+                "<aws:License Id=\"Trial\" Expiry=\"9999-01-01\" Edition=\"Developer\" xmlns:aws=\"http://particular.net/license\" />");
 
-        // Dead letter: mensajes fallidos van a error queue
-        endpointConfig.SendFailedMessagesTo("IntegrationApp.Error");
-
-        // Licencia: en desarrollo usar trial sin bloqueo
-        endpointConfig.License(
-            "<aws:License Id=\"Trial\" Expiry=\"9999-01-01\" Edition=\"Developer\" xmlns:aws=\"http://particular.net/license\" />");
-
-        return endpointConfig;
-    });
+            return endpointConfig;
+        });
+    }
+    else
+    {
+        Log.Warning("NServiceBus:RabbitMqUrl no configurado — mensajería deshabilitada");
+    }
 
     // BackgroundService: no derribar el host si un servicio de fondo falla
     builder.Services.Configure<HostOptions>(opts =>
