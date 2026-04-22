@@ -1,0 +1,115 @@
+name: Core API — CI
+
+# Solo se dispara cuando cambia algo dentro de CoreApp/
+# NO se despliega junto a IntegrationApp
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'CoreApp/**'
+      - '.github/workflows/core-ci.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'CoreApp/**'
+
+env:
+  DOTNET_VERSION: '9.0.x'
+  SOLUTION_PATH: 'RadiadoresSprings.sln'
+  CORE_API_PATH: 'CoreApp/Core.API/Core.API.csproj'
+  CORE_CONSOLE_PATH: 'CoreApp/Core.Console/Core.Console.csproj'
+
+jobs:
+  # ──────────────────────────────────────────────────────────────────────────
+  # JOB 1: Build & Test del Core
+  # ──────────────────────────────────────────────────────────────────────────
+  build-core:
+    name: Build Core (P2)
+    runs-on: windows-latest
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Setup .NET ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: 🔄 Restore NuGet packages
+        run: dotnet restore ${{ env.SOLUTION_PATH }}
+
+      - name: 🏗️ Build Core.Domain
+        run: dotnet build CoreApp/Core.Domain/Core.Domain.csproj --no-restore -c Release
+
+      - name: 🏗️ Build Core.Data
+        run: dotnet build CoreApp/Core.Data/Core.Data.csproj --no-restore -c Release
+
+      - name: 🏗️ Build Core.API
+        run: dotnet build ${{ env.CORE_API_PATH }} --no-restore -c Release
+
+      - name: 🖥️ Build Core.Console
+        run: dotnet build ${{ env.CORE_CONSOLE_PATH }} --no-restore -c Release
+
+      - name: 📦 Publish Core.API (artifact)
+        run: |
+          dotnet publish ${{ env.CORE_API_PATH }} \
+            --no-build \
+            -c Release \
+            -o ./artifacts/core-api
+
+      - name: 📦 Publish Core.Console (artifact)
+        run: |
+          dotnet publish ${{ env.CORE_CONSOLE_PATH }} \
+            --no-build \
+            -c Release \
+            -o ./artifacts/core-console
+
+      - name: 📤 Upload Core.API artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: core-api-build
+          path: ./artifacts/core-api
+          retention-days: 5
+
+      - name: 📤 Upload Core.Console artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: core-console-build
+          path: ./artifacts/core-console
+          retention-days: 5
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # JOB 2: Verificación de código
+  # ──────────────────────────────────────────────────────────────────────────
+  code-quality:
+    name: Code Quality Check
+    runs-on: ubuntu-latest
+    needs: build-core
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: 🔄 Restore
+        run: dotnet restore ${{ env.SOLUTION_PATH }}
+
+      - name: 🔍 Format check
+        run: |
+          dotnet format CoreApp/Core.API/Core.API.csproj \
+            --verify-no-changes \
+            --severity warn \
+            || echo "⚠️ Format issues found (non-blocking)"
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # NOTA: El Core NO se despliega junto a IntegrationApp.
+  # El deployment del Core (P2) es independiente:
+  # - Levantar manualmente con: dotnet run --project CoreApp/Core.API
+  # - Consola: dotnet run --project CoreApp/Core.Console
+  # - Para producción: configurar un job "deploy-core" separado aquí
+  # ──────────────────────────────────────────────────────────────────────────

@@ -11,7 +11,9 @@ public record OrdenCreadaResponse
 public record EstadoOrdenDto
 {
     public Guid OrdenId { get; init; }
-    public string Estado { get; init; } = string.Empty;  // "Pendiente" | "Procesando" | "Listo" | "Entregado" | "Cancelado"
+    public string Estado { get; init; } = string.Empty;  // "Pendiente" | "Procesando" | "Listo" | "Entregado" | "Cancelado" | "PendienteSync"
+    public string? Mensaje { get; init; }
+    public bool Offline { get; init; }
     public DateTimeOffset CreadaEn { get; init; }
     public DateTimeOffset? ActualizadaEn { get; init; }
     public IReadOnlyList<HistorialEstadoDto> Historial { get; init; } = [];

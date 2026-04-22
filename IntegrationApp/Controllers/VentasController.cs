@@ -2,12 +2,12 @@ using IntegrationApp.Contracts.Requests.Ventas;
 using IntegrationApp.Contracts.Responses.Ventas;
 using IntegrationApp.Data;
 using IntegrationApp.Domain.Entities;
-using IntegrationApp.Messages.Commands;
 using IntegrationApp.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NServiceBus;
+using SharedContracts.Commands;
 using System.Text.Json;
 
 namespace IntegrationApp.Controllers;
@@ -113,17 +113,24 @@ public class VentasController : ControllerBase
         _db.VentasOfflinePendientes.Add(ventaOffline);
         await _db.SaveChangesAsync(ct);
 
-        // Publicar mensaje NServiceBus para la Saga
+        // Publicar mensaje NServiceBus para la Saga (SharedContracts.Commands)
         await _bus.Send(new VentaRealizadaOfflineMessage
         {
             IdTransaccionLocal = idGuid,
-            IdCajero = request.CajeroId,
+            IdCajero  = request.CajeroId,
             IdSucursal = request.SucursalId,
             ClienteId = request.ClienteId,
             MetodoPago = request.MetodoPago,
             MontoTotal = ventaOffline.MontoTotal,
             MontoRecibido = request.MontoRecibido,
-            Lineas = request.Lineas,
+            // Mapear LineaVentaDto → LineaVentaItem (SharedContracts no conoce Descuento)
+            Lineas = request.Lineas
+                .Select(l => new LineaVentaItem
+                {
+                    ProductoId     = l.ProductoId,
+                    Cantidad       = l.Cantidad,
+                    PrecioUnitario = l.PrecioUnitario
+                }).ToList(),
             FechaLocal = ventaOffline.FechaLocal
         });
 

@@ -1,19 +1,28 @@
 using IntegrationApp.Hubs;
-using IntegrationApp.Messages.Events;
 using Microsoft.AspNetCore.SignalR;
 using NServiceBus;
+using SharedContracts.Events;
 
 namespace IntegrationApp.Handlers;
 
 /// <summary>
-/// Recibe OrdenCambioEstadoEvent del Core y lo reenvía al Website (P4) vía SignalR.
+/// Recibe OrdenCambioEstadoEvent del Core (vía RabbitMQ) y lo reenvía
+/// al Website (P4) en tiempo real mediante SignalR.
+///
+/// CORRECCIONES:
+/// — Usa SharedContracts.Events.OrdenCambioEstadoEvent (mismo namespace que Core)
+///   para que NServiceBus resuelva el exchange correcto en RabbitMQ.
+/// — Usa message.Timestamp y message.Nota (propiedades definidas en SharedContracts)
+///   en lugar de Fecha/Nota del contrato local que tenía tipos incompatibles.
 /// </summary>
 public class OrdenCambioEstadoHandler : IHandleMessages<OrdenCambioEstadoEvent>
 {
     private readonly IHubContext<NotificacionesHub> _hubContext;
     private readonly ILogger<OrdenCambioEstadoHandler> _logger;
 
-    public OrdenCambioEstadoHandler(IHubContext<NotificacionesHub> hubContext, ILogger<OrdenCambioEstadoHandler> logger)
+    public OrdenCambioEstadoHandler(
+        IHubContext<NotificacionesHub> hubContext,
+        ILogger<OrdenCambioEstadoHandler> logger)
     {
         _hubContext = hubContext;
         _logger = logger;
@@ -21,9 +30,10 @@ public class OrdenCambioEstadoHandler : IHandleMessages<OrdenCambioEstadoEvent>
 
     public async Task Handle(OrdenCambioEstadoEvent message, IMessageHandlerContext context)
     {
-        _logger.LogInformation("[OrdenEstado] Orden {Id}: {Anterior}→{Nuevo}", message.OrdenId, message.EstadoAnterior, message.EstadoNuevo);
+        _logger.LogInformation("[OrdenEstado] Orden {Id}: {Anterior} → {Nuevo}",
+            message.OrdenId, message.EstadoAnterior, message.EstadoNuevo);
 
-        // Notificar al grupo de la orden vía SignalR
+        // Notificar en tiempo real al grupo de la orden vía SignalR
         await _hubContext.Clients
             .Group($"orden-{message.OrdenId}")
             .SendAsync("EstadoOrdenActualizado", new
@@ -32,7 +42,7 @@ public class OrdenCambioEstadoHandler : IHandleMessages<OrdenCambioEstadoEvent>
                 message.EstadoNuevo,
                 message.EstadoAnterior,
                 message.Nota,
-                message.Fecha
+                Timestamp = message.Timestamp
             });
     }
 }

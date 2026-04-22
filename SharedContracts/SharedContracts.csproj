@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>SharedContracts</RootNamespace>
+    <AssemblyName>SharedContracts</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Única dependencia: NServiceBus para ICommand / IEvent -->
+    <PackageReference Include="NServiceBus" Version="9.2.3" />
+  </ItemGroup>
+
+</Project>

@@ -175,14 +175,28 @@ try
     // ─────────────────────────────────────────────────────────────────────────
     // SERVICIOS DE INTEGRACIÓN
     // ─────────────────────────────────────────────────────────────────────────
+
+    // Circuit Breaker: singleton — estado global del sistema
     builder.Services.AddSingleton<ICircuitBreakerStateService, CircuitBreakerStateService>();
+
+    // CoreApiClient: scoped — una instancia por request HTTP
     builder.Services.AddScoped<ICoreApiClient, CoreApiClient>();
+
+    // CoreTokenService: singleton — cachea el JWT M2M en memoria
+    builder.Services.AddSingleton<ICoreTokenService, CoreTokenService>();
+
+    // LocalAuthService: scoped — usa DbContext (scoped) para validar contra UsuarioMirror
+    // Solo se usa en modo offline (cuando Core no está disponible)
+    builder.Services.AddScoped<ILocalAuthService, LocalAuthService>();
 
     // ─────────────────────────────────────────────────────────────────────────
     // BACKGROUND SERVICES
     // ─────────────────────────────────────────────────────────────────────────
     builder.Services.AddHostedService<CoreHealthCheckService>();
     builder.Services.AddHostedService<MirrorSyncService>();
+
+    // Replay de operaciones offline cuando Core se recupera
+    builder.Services.AddHostedService<OperacionPendienteSyncService>();
 
     // ─────────────────────────────────────────────────────────────────────────
     // FLUENTVALIDATION

@@ -1,18 +1,35 @@
-using IntegrationApp.Contracts.Requests.Ventas;
 using IntegrationApp.Data;
 using IntegrationApp.Domain.Entities;
-using IntegrationApp.Messages.Commands;
 using IntegrationApp.Messages.Events;
 using IntegrationApp.Services;
 using Microsoft.EntityFrameworkCore;
 using NServiceBus;
+using SharedContracts.Commands;
+using SharedContracts.Events;
 using System.Text.Json;
 
 namespace IntegrationApp.Sagas;
 
 /// <summary>
-/// Saga de sincronización offline. Orquesta el proceso de aplicar ventas
-/// pendientes al Core cuando se restaura la conexión.
+/// Orquesta la sincronización de ventas offline al Core.
+///
+/// FLUJO NORMAL (Core disponible):
+///   1. Recibe VentaRealizadaOfflineMessage (de Caja vía RabbitMQ)
+///   2. Persiste VentaOfflinePendiente + IdempotencyLog en PostgreSQL
+///   3. Obtiene JWT del Core (CoreTokenService)
+///   4. POST /api/v1/ventas con Idempotency-Key
+///   5a. 2xx → actualiza Estado "Sincronizada", publica VentaSincronizadaEvent → MarkAsComplete()
+///   5b. Error → backoff exponencial (5 / 10 / 20 min), máx 3 reintentos → dead-letter
+///
+/// FLUJO OFFLINE (Core no disponible):
+///   1-2. Ídem
+///   3. CircuitBreaker abierto → programa timeout 5 min
+///   4. Al expirar el timeout reintenta desde paso 3
+///
+/// CONFIRMACIÓN POR BUS (opcional, complementario):
+///   Si Core publica VentaAplicadaEnCoreEvent vía RabbitMQ (por ejemplo al
+///   procesar el idempotency key en VentasController), el saga actualiza
+///   el IdempotencyLog con los datos reales de factura aunque ya haya completado.
 /// </summary>
 public class SyncOfflineSaga : Saga<SyncOfflineSagaData>,
     IAmStartedByMessages<VentaRealizadaOfflineMessage>,
@@ -21,6 +38,7 @@ public class SyncOfflineSaga : Saga<SyncOfflineSagaData>,
 {
     private readonly ICircuitBreakerStateService _cbState;
     private readonly ICoreApiClient _coreApiClient;
+    private readonly ICoreTokenService _coreTokenService;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<SyncOfflineSaga> _logger;
 
@@ -29,11 +47,13 @@ public class SyncOfflineSaga : Saga<SyncOfflineSagaData>,
     public SyncOfflineSaga(
         ICircuitBreakerStateService cbState,
         ICoreApiClient coreApiClient,
+        ICoreTokenService coreTokenService,
         IServiceScopeFactory scopeFactory,
         ILogger<SyncOfflineSaga> logger)
     {
         _cbState = cbState;
         _coreApiClient = coreApiClient;
+        _coreTokenService = coreTokenService;
         _scopeFactory = scopeFactory;
         _logger = logger;
     }
@@ -45,11 +65,14 @@ public class SyncOfflineSaga : Saga<SyncOfflineSagaData>,
               .ToMessage<VentaAplicadaEnCoreEvent>(m => m.IdTransaccionLocal);
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // 1. Entrada: nueva venta offline desde la Caja
+    // ─────────────────────────────────────────────────────────────────────────
     public async Task Handle(VentaRealizadaOfflineMessage msg, IMessageHandlerContext ctx)
     {
         _logger.LogInformation("[Saga] Recibida VentaRealizadaOfflineMessage {Id}", msg.IdTransaccionLocal);
 
-        // Persistir en la saga data
+        // Copiar payload al saga data (persiste en NServiceBus SQL Persistence)
         Data.IdTransaccionLocal = msg.IdTransaccionLocal;
         Data.SucursalId = msg.IdSucursal;
         Data.CajeroId = msg.IdCajero;
@@ -60,23 +83,30 @@ public class SyncOfflineSaga : Saga<SyncOfflineSagaData>,
         Data.FechaLocal = msg.FechaLocal;
         Data.LineasJson = JsonSerializer.Serialize(msg.Lineas);
 
-        // Persistir en BD local
         using var scope = _scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<IntegrationDbContext>();
 
-        // Verificar idempotencia
+        // ── BUG #4 CORREGIDO: verificar Y escribir IdempotencyLog ─────────────
         var yaExiste = await db.IdempotencyLogs
             .AnyAsync(x => x.IdTransaccionLocal == msg.IdTransaccionLocal);
 
         if (yaExiste)
         {
-            _logger.LogWarning("[Saga] Transacción {Id} ya fue procesada (duplicado)", msg.IdTransaccionLocal);
+            _logger.LogWarning("[Saga] Transacción {Id} ya fue procesada (duplicado) — descartando", msg.IdTransaccionLocal);
             MarkAsComplete();
             return;
         }
 
-        // Guardar venta offline pendiente
-        var ventaOffline = new VentaOfflinePendiente
+        // Escribir el log de idempotencia inmediatamente al recibir el mensaje
+        db.IdempotencyLogs.Add(new IdempotencyLog
+        {
+            IdTransaccionLocal = msg.IdTransaccionLocal,
+            Estado = "Recibida",
+            FechaEnvio = DateTimeOffset.UtcNow
+        });
+
+        // Guardar venta offline pendiente en la BD local
+        db.VentasOfflinePendientes.Add(new VentaOfflinePendiente
         {
             IdTransaccionLocal = msg.IdTransaccionLocal,
             CajeroId = msg.IdCajero,
@@ -88,114 +118,221 @@ public class SyncOfflineSaga : Saga<SyncOfflineSagaData>,
             LineasJson = Data.LineasJson,
             FechaLocal = msg.FechaLocal,
             Estado = "Pendiente"
-        };
+        });
 
-        db.VentasOfflinePendientes.Add(ventaOffline);
         await db.SaveChangesAsync();
 
-        await IntentatSincronizar(ctx);
+        await IntentarSincronizar(ctx);
     }
 
-    private async Task IntentatSincronizar(IMessageHandlerContext ctx)
+    // ─────────────────────────────────────────────────────────────────────────
+    // 2. Intento de sincronización (llamado en Handle y en Timeout)
+    // ─────────────────────────────────────────────────────────────────────────
+    private async Task IntentarSincronizar(IMessageHandlerContext ctx)
     {
         if (!_cbState.CoreAvailable)
         {
-            _logger.LogInformation("[Saga] Core no disponible, programando retry en 5 min para {Id}", Data.IdTransaccionLocal);
+            _logger.LogInformation("[Saga] Core no disponible. Retry en 5 min para {Id}", Data.IdTransaccionLocal);
             await RequestTimeout<RetryTimeout>(ctx, TimeSpan.FromMinutes(5));
             return;
         }
 
         Data.Intentos++;
+
+        using var scope = _scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<IntegrationDbContext>();
+
         try
         {
-            var request = new CrearVentaRequest
+            // ── BUG #6/#7 CORREGIDO: obtener JWT antes de llamar al Core ─────
+            var token = await _coreTokenService.GetTokenAsync();
+
+            // Reconstruir el payload de la venta desde los datos del saga.
+            // LineasJson fue serializado desde LineaVentaItem (SharedContracts),
+            // así que deserializamos al mismo tipo.
+            var lineas = JsonSerializer.Deserialize<List<LineaVentaItem>>(Data.LineasJson) ?? [];
+            var request = new
             {
-                ClienteId = Data.ClienteId,
-                CajeroId = Data.CajeroId,
-                SucursalId = Data.SucursalId,
-                MetodoPago = Data.MetodoPago,
-                MontoRecibido = Data.MontoRecibido,
-                Lineas = JsonSerializer.Deserialize<List<LineaVentaDto>>(Data.LineasJson) ?? []
+                clienteId    = Data.ClienteId,
+                cajeroId     = Data.CajeroId,
+                sucursalId   = Data.SucursalId,
+                metodoPago   = Data.MetodoPago,
+                montoRecibido = Data.MontoRecibido,
+                lineas       = lineas.Select(l => new
+                {
+                    productoId     = l.ProductoId,
+                    cantidad       = l.Cantidad,
+                    precioUnitario = l.PrecioUnitario
+                }).ToList()
             };
 
             var response = await _coreApiClient.PostAsync(
                 "/api/v1/ventas",
                 request,
+                bearerToken: token,
                 idempotencyKey: Data.IdTransaccionLocal.ToString());
+
+            // ── BUG #5 CORREGIDO: actualizar estado en BD ────────────────────
+            await ActualizarVentaPendienteAsync(db, Data.Intentos, exito: response.IsSuccessStatusCode);
 
             if (response.IsSuccessStatusCode)
             {
+                _logger.LogInformation("[Saga] Venta {Id} sincronizada al Core (intento {N})", Data.IdTransaccionLocal, Data.Intentos);
+
+                // Actualizar IdempotencyLog como "Enviada" (confirmación definitiva llegará
+                // vía VentaAplicadaEnCoreEvent si Core lo publica, o queda en "Enviada")
+                await ActualizarIdempotencyLogAsync(db, "Enviada", motivoRechazo: null);
+
+                // Notificar a la Caja POS que la venta fue sincronizada
                 await ctx.Publish(new VentaSincronizadaEvent
                 {
                     IdTransaccionLocal = Data.IdTransaccionLocal,
-                    FacturaIdCore = Guid.Empty, // Se poblará desde VentaAplicadaEnCoreEvent
-                    NumeroFactura = "PENDIENTE",
+                    VentaIdCore = 0,          // Se actualiza al recibir VentaAplicadaEnCoreEvent
+                    NumeroFactura = string.Empty, // Ídem
                     Resultado = "Sincronizada",
                     SincronizadaEn = DateTimeOffset.UtcNow
                 });
 
-                _logger.LogInformation("[Saga] Venta {Id} sincronizada exitosamente", Data.IdTransaccionLocal);
                 MarkAsComplete();
             }
             else
             {
-                await ManejarFallo(ctx, $"HTTP {(int)response.StatusCode}");
+                await ManejarFallo(ctx, db, $"HTTP {(int)response.StatusCode}");
             }
         }
         catch (Exception ex)
         {
-            await ManejarFallo(ctx, ex.Message);
+            await ManejarFallo(ctx, db, ex.Message);
         }
     }
 
-    private async Task ManejarFallo(IMessageHandlerContext ctx, string razon)
+    // ─────────────────────────────────────────────────────────────────────────
+    // 3. Manejo de fallo con backoff exponencial
+    // ─────────────────────────────────────────────────────────────────────────
+    private async Task ManejarFallo(IMessageHandlerContext ctx, IntegrationDbContext db, string razon)
     {
-        _logger.LogWarning("[Saga] Intento {N}/{Max} falló: {Razon}", Data.Intentos, MaxIntentos, razon);
+        _logger.LogWarning("[Saga] Intento {N}/{Max} falló para {Id}: {Razon}",
+            Data.Intentos, MaxIntentos, Data.IdTransaccionLocal, razon);
 
         if (Data.Intentos >= MaxIntentos)
         {
-            _logger.LogError("[Saga] Máximos intentos alcanzados para {Id}. Enviando a dead-letter.", Data.IdTransaccionLocal);
+            _logger.LogError("[Saga] Máx. intentos alcanzados para {Id}. Enviando a dead-letter.", Data.IdTransaccionLocal);
+
+            // ── BUG #5 CORREGIDO: marcar como rechazada en BD ────────────────
+            await ActualizarVentaPendienteEstadoAsync(db, "RechazadaCore");
+            await ActualizarIdempotencyLogAsync(db, "Rechazada", motivoRechazo: razon);
+
             await ctx.Publish(new VentaSincronizadaEvent
             {
                 IdTransaccionLocal = Data.IdTransaccionLocal,
-                FacturaIdCore = Guid.Empty,
+                VentaIdCore = 0,
                 NumeroFactura = string.Empty,
                 Resultado = "RechazadaCore",
                 MotivoRechazo = razon,
                 SincronizadaEn = DateTimeOffset.UtcNow
             });
+
             MarkAsComplete();
         }
         else
         {
-            // Backoff exponencial: 5, 10, 20 minutos
+            // Backoff exponencial: 5 min → 10 min → 20 min
             var delay = TimeSpan.FromMinutes(5 * Math.Pow(2, Data.Intentos - 1));
+            _logger.LogInformation("[Saga] Reintentando en {Min:F0} min para {Id}", delay.TotalMinutes, Data.IdTransaccionLocal);
             await RequestTimeout<RetryTimeout>(ctx, delay);
         }
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // 4. Confirmación por bus desde el Core (VentaAplicadaEnCoreEvent)
+    //    Complementario: llega si Core publica el evento tras aplicar la venta.
+    //    El saga puede ya estar completo; NServiceBus lo ignora silenciosamente.
+    // ─────────────────────────────────────────────────────────────────────────
     public async Task Handle(VentaAplicadaEnCoreEvent message, IMessageHandlerContext context)
     {
-        _logger.LogInformation("[Saga] Venta {Id} confirmada por Core con factura {Factura}",
-            message.IdTransaccionLocal, message.NumeroFactura);
+        _logger.LogInformation("[Saga] Confirmación del Core para {Id}: Factura={Factura}, Exitoso={Ok}",
+            message.IdTransaccionLocal, message.NumeroFactura, message.Exitoso);
+
+        using var scope = _scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<IntegrationDbContext>();
+
+        if (message.Exitoso)
+        {
+            // Actualizar con los datos reales de la factura del Core
+            var log = await db.IdempotencyLogs
+                .FirstOrDefaultAsync(x => x.IdTransaccionLocal == message.IdTransaccionLocal);
+
+            if (log is not null)
+            {
+                log.Estado = "Aplicada";
+                log.FechaConfirmacion = message.Timestamp;
+                await db.SaveChangesAsync();
+            }
+        }
+
+        // Si el saga llegó hasta aquí desde un timeout ya completado,
+        // NServiceBus maneja el caso de saga no encontrada sin crash.
         MarkAsComplete();
         await Task.CompletedTask;
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // 5. Timeout: reintento programado
+    // ─────────────────────────────────────────────────────────────────────────
     public async Task Timeout(RetryTimeout state, IMessageHandlerContext context)
     {
-        _logger.LogInformation("[Saga] Timeout disparado para {Id} — reintentando sincronización", Data.IdTransaccionLocal);
-        await IntentatSincronizar(context);
+        _logger.LogInformation("[Saga] Timeout disparado para {Id} — reintentando", Data.IdTransaccionLocal);
+        await IntentarSincronizar(context);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Helpers de BD
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private async Task ActualizarVentaPendienteAsync(IntegrationDbContext db, int intentos, bool exito)
+    {
+        var venta = await db.VentasOfflinePendientes
+            .FirstOrDefaultAsync(v => v.IdTransaccionLocal == Data.IdTransaccionLocal);
+
+        if (venta is null) return;
+
+        venta.IntentosSync = intentos;
+        venta.UltimoIntento = DateTimeOffset.UtcNow;
+
+        if (exito)
+            venta.Estado = "Sincronizada";
+
+        await db.SaveChangesAsync();
+    }
+
+    private async Task ActualizarVentaPendienteEstadoAsync(IntegrationDbContext db, string estado)
+    {
+        var venta = await db.VentasOfflinePendientes
+            .FirstOrDefaultAsync(v => v.IdTransaccionLocal == Data.IdTransaccionLocal);
+
+        if (venta is null) return;
+
+        venta.Estado = estado;
+        venta.UltimoIntento = DateTimeOffset.UtcNow;
+        await db.SaveChangesAsync();
+    }
+
+    private async Task ActualizarIdempotencyLogAsync(IntegrationDbContext db, string estado, string? motivoRechazo)
+    {
+        var log = await db.IdempotencyLogs
+            .FirstOrDefaultAsync(x => x.IdTransaccionLocal == Data.IdTransaccionLocal);
+
+        if (log is null) return;
+
+        log.Estado = estado;
+        log.MotivoRechazo = motivoRechazo;
+
+        if (estado is "Aplicada" or "Enviada")
+            log.FechaConfirmacion = DateTimeOffset.UtcNow;
+
+        await db.SaveChangesAsync();
     }
 }
 
-// Timeout marker
+/// <summary>Marcador para el timeout de reintento del saga.</summary>
 public class RetryTimeout { }
-
-// Evento que el Core envía para confirmar aplicación (P2 → P3)
-public record VentaAplicadaEnCoreEvent : NServiceBus.IEvent
-{
-    public Guid IdTransaccionLocal { get; init; }
-    public Guid FacturaIdCore { get; init; }
-    public string NumeroFactura { get; init; } = string.Empty;
-}

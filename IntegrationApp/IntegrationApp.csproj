@@ -9,6 +9,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\SharedContracts\SharedContracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- ASP.NET Core / OpenAPI -->
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.4" />
     <PackageReference Include="Scalar.AspNetCore" Version="2.5.6" />
@@ -49,6 +53,9 @@
 
     <!-- Caching / Memory -->
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="9.0.4" />
+
+    <!-- Autenticación offline: verificación de hash BCrypt contra UsuarioMirror -->
+    <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
 
   </ItemGroup>
 
