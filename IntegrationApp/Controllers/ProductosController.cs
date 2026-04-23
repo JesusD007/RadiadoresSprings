@@ -58,8 +58,7 @@ public class ProductosController : ControllerBase
                     var result = ProxyHelper.Unwrap<ProductoPagedResult>(content, _json);
                     if (result != null)
                     {
-                        result.FromMirror = false;
-                        return Ok(result);
+                        return Ok(result with { FromMirror = false });
                     }
                 }
             }
