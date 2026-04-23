@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using IntegrationApp.Helpers;
 
 namespace IntegrationApp.Services;
 
@@ -95,35 +96,17 @@ public class CoreTokenService : ICoreTokenService
         }
 
         var json = await response.Content.ReadAsStringAsync(ct);
-        using var doc = JsonDocument.Parse(json);
+        var authObj = ProxyHelper.Unwrap<AuthResponseRaw>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
-        // El Core devuelve { token: "...", expiresAt: "..." } o { token: "...", expiresIn: 480 }
-        var token = doc.RootElement.TryGetProperty("token", out var tokenProp)
-            ? tokenProp.GetString()
-            : null;
-
-        if (string.IsNullOrWhiteSpace(token))
+        if (string.IsNullOrWhiteSpace(authObj?.Token))
             throw new InvalidOperationException(
                 "La respuesta de login del Core no contiene el campo 'token'.");
 
-        // Calcular expiración
-        if (doc.RootElement.TryGetProperty("expiresAt", out var expiresAtProp) &&
-            DateTimeOffset.TryParse(expiresAtProp.GetString(), out var expiresAt))
-        {
-            _tokenExpiry = expiresAt;
-        }
-        else if (doc.RootElement.TryGetProperty("expiresIn", out var expiresInProp) &&
-                 expiresInProp.TryGetInt32(out var expiresInMinutes))
-        {
-            _tokenExpiry = DateTimeOffset.UtcNow.AddMinutes(expiresInMinutes);
-        }
-        else
-        {
-            // Fallback: asumir 8 horas (configuración por defecto del Core)
-            _tokenExpiry = DateTimeOffset.UtcNow.AddHours(8);
-        }
+        _tokenExpiry = authObj.Expiry;
 
         _logger.LogInformation("[CoreToken] JWT obtenido. Válido hasta {Expiry:HH:mm:ss} UTC", _tokenExpiry);
-        return token;
+        return authObj.Token;
     }
+
+    private record AuthResponseRaw(string Token, DateTime Expiry);
 }
