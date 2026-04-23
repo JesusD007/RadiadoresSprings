@@ -10,8 +10,10 @@ namespace IntegrationApp.Controllers;
 
 [ApiController]
 [Route("api/v1")]
+[Microsoft.AspNetCore.Authorization.Authorize]
 public class ProductosController : ControllerBase
 {
+    private string Token => Request.Headers.Authorization.ToString().Replace("Bearer ", "").Trim();
     private readonly ICoreApiClient _core;
     private readonly ICircuitBreakerStateService _cbState;
     private readonly IntegrationDbContext _db;
@@ -48,7 +50,7 @@ public class ProductosController : ControllerBase
                     (soloActivos ? "&soloActivos=true" : "") +
                     (conStock ? "&conStock=true" : "");
 
-                var response = await _core.GetAsync($"/api/v1/productos{query}", ct: ct);
+                var response = await _core.GetAsync($"/api/v1/productos{query}", bearerToken: Token, ct: ct);
                 if (response.IsSuccessStatusCode)
                 {
                     var content = await response.Content.ReadAsStringAsync(ct);
@@ -91,7 +93,7 @@ public class ProductosController : ControllerBase
         {
             try
             {
-                var response = await _core.GetAsync($"/api/v1/productos/{id}", ct: ct);
+                var response = await _core.GetAsync($"/api/v1/productos/{id}", bearerToken: Token, ct: ct);
                 if (response.IsSuccessStatusCode)
                 {
                     var content = await response.Content.ReadAsStringAsync(ct);
@@ -121,7 +123,7 @@ public class ProductosController : ControllerBase
         if (!_cbState.CoreAvailable)
             return StatusCode(503, new { error = "Servicio no disponible temporalmente", fromMirror = false });
 
-        var response = await _core.GetAsync("/api/v1/servicios", ct: ct);
+        var response = await _core.GetAsync("/api/v1/servicios", bearerToken: Token, ct: ct);
         var content = await response.Content.ReadAsStringAsync(ct);
         return StatusCode((int)response.StatusCode, JsonSerializer.Deserialize<object>(content, _json));
     }
