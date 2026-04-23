@@ -140,6 +140,14 @@ public class AuthService(CoreDbContext db, IConfiguration config, ILogger<AuthSe
         }
     }
 
+    public async Task<IEnumerable<UsuarioMirrorResponse>> GetUsuariosMirrorAsync()
+    {
+        var usuarios = await db.Usuarios.ToListAsync();
+        return usuarios.Select(u => new UsuarioMirrorResponse(
+            u.Id, u.Username, u.PasswordHash, u.Rol.ToString(),
+            u.Nombre, u.Apellido, u.Email, u.EsActivo));
+    }
+
     private (string Token, DateTime Expiry) GenerarToken(Usuario usuario)
     {
         var key = config["Jwt:Secret"] ?? "RadiadoresSpringsSecretKey2026!XYZ";

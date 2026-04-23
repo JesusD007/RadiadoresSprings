@@ -125,7 +125,7 @@ public class MirrorSyncService : BackgroundService
             while (true)
             {
                 var response = await client.GetAsync(
-                    $"/api/v1/productos?page={page}&pageSize={pageSize}", ct);
+                    $"/api/v1/productos?pagina={page}&tamano={pageSize}", ct);
 
                 if (!response.IsSuccessStatusCode)
                 {
@@ -255,7 +255,7 @@ public class MirrorSyncService : BackgroundService
             while (true)
             {
                 var response = await client.GetAsync(
-                    $"/api/v1/clientes/mirror?page={page}&pageSize={pageSize}", ct);
+                    $"/api/v1/clientes?pagina={page}&tamano={pageSize}", ct);
 
                 if (!response.IsSuccessStatusCode)
                 {

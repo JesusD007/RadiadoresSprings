@@ -11,6 +11,9 @@ public record AuthResponse(string Token, string RefreshToken, DateTime Expiry, U
 public record UsuarioResponse(int Id, string Username, string Nombre, string Apellido,
     string Email, string Rol, int SucursalId, string NombreSucursal, bool EsActivo);
 
+public record UsuarioMirrorResponse(int Id, string Username, string PasswordHash, string Rol,
+    string Nombre, string? Apellido, string? Email, bool EsActivo);
+
 // ── Productos ─────────────────────────────────────────────────────────────────
 public record ProductoResponse(
     int Id, string Codigo, string Nombre, string? Descripcion,

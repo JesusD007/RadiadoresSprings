@@ -11,6 +11,7 @@ public interface IAuthService
     Task<UsuarioResponse?> CrearUsuarioAsync(CrearUsuarioRequest req);
     Task<IEnumerable<UsuarioResponse>> GetUsuariosAsync();
     Task<UsuarioResponse> RegistrarClienteWebAsync(RegistroWebRequest request);
+    Task<IEnumerable<UsuarioMirrorResponse>> GetUsuariosMirrorAsync();
 }
 
 public interface IProductoService

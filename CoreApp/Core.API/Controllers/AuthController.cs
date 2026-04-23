@@ -55,6 +55,20 @@ public class AuthController(IAuthService authService) : ControllerBase
         }
     }
 
+    // ── Endpoints de Sincronización M2M ───────────────────────────────────────
+
+    /// <summary>
+    /// Sincronizar usuarios (incluye PasswordHash) para IntegrationApp.
+    /// Solo accesible con rol de sincronización (ServicioWeb).
+    /// </summary>
+    [HttpGet("~/api/v1/usuarios/mirror")]
+    [Authorize(Policy = ApiPolicies.SincronizacionOffline)]
+    public async Task<ActionResult<ApiResponse<IEnumerable<UsuarioMirrorResponse>>>> GetUsuariosMirror()
+    {
+        var usuarios = await authService.GetUsuariosMirrorAsync();
+        return Ok(new ApiResponse<IEnumerable<UsuarioMirrorResponse>>(true, null, usuarios));
+    }
+
     // ── Endpoints autenticados — cualquier rol ────────────────────────────────
 
     /// <summary>Cambiar contraseña propia (disponible para todos los roles autenticados).</summary>
