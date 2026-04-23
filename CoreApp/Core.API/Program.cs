@@ -323,7 +323,7 @@ static async Task SeedAsync(CoreDbContext db)
             Email        = "servicio@radiadores.com",
             SucursalId   = sucursal.Id,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(passServicio),
-            Rol          = Core.Domain.Enums.RolUsuario.Cliente,
+            Rol          = Core.Domain.Enums.RolUsuario.ServicioWeb,
             EsActivo     = true
         });
         await db.SaveChangesAsync();

@@ -12,8 +12,8 @@ public class LoginRequestValidator : AbstractValidator<LoginRequest>
     {
         RuleFor(x => x.Username).NotEmpty().MaximumLength(100);
         RuleFor(x => x.Password).NotEmpty().MaximumLength(200);
-        RuleFor(x => x.Rol).Must(r => r is null or "Cajero" or "Admin" or "Cliente")
-            .WithMessage("Rol debe ser Cajero, Admin o Cliente");
+        RuleFor(x => x.Rol).Must(r => r is null or "Cajero" or "Admin" or "ServicioWeb" or "Cliente")
+            .WithMessage("Rol debe ser Cajero, Admin, ServicioWeb o Cliente");
     }
 }
 

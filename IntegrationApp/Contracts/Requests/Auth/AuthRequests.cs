@@ -6,7 +6,7 @@ public record LoginRequest
 {
     [Required] public string Username { get; init; } = string.Empty;
     [Required] public string Password { get; init; } = string.Empty;
-    public string? Rol { get; init; } // "Cajero" | "Admin" | "Cliente"
+    public string? Rol { get; init; } // "Cajero" | "Admin" | "ServicioWeb" | "Cliente"
 }
 
 public record RefreshRequest

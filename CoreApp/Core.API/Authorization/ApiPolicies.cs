@@ -59,7 +59,7 @@ public static class ApiPolicies
     // Usados en AddAuthorization para construir cada policy.
 
     public static readonly string[] Roles_Autenticado =
-        ["Administrador", "Cajero", "Vendedor", "Almacenista", "Cliente"];
+        ["Administrador", "Cajero", "Vendedor", "Almacenista", "ServicioWeb", "Cliente"];
 
     public static readonly string[] Roles_AdminSistema =
         ["Administrador"];
@@ -68,10 +68,10 @@ public static class ApiPolicies
         ["Administrador", "Almacenista"];
 
     public static readonly string[] Roles_SincronizacionOffline =
-        ["Administrador", "Almacenista", "Cliente"];
+        ["Administrador", "Almacenista", "ServicioWeb", "Cliente"];
 
     public static readonly string[] Roles_GestionVentas =
-        ["Administrador", "Cajero", "Vendedor", "Cliente"];
+        ["Administrador", "Cajero", "Vendedor", "ServicioWeb", "Cliente"];
 
     public static readonly string[] Roles_CancelarVentas =
         ["Administrador"];
@@ -80,11 +80,11 @@ public static class ApiPolicies
         ["Administrador", "Cajero"];
 
     public static readonly string[] Roles_GestionOrdenes =
-        ["Administrador", "Vendedor", "Cliente"];
+        ["Administrador", "Vendedor", "ServicioWeb", "Cliente"];
 
     public static readonly string[] Roles_GestionClientes =
-        ["Administrador", "Vendedor", "Cliente"];
+        ["Administrador", "Vendedor", "ServicioWeb", "Cliente"];
 
     public static readonly string[] Roles_GestionPagos =
-        ["Administrador", "Cajero", "Cliente"];
+        ["Administrador", "Cajero", "ServicioWeb", "Cliente"];
 }
