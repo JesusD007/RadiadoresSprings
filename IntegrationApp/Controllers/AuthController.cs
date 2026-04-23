@@ -93,4 +93,27 @@ public class AuthController : ControllerBase
             ? Ok(JsonSerializer.Deserialize<object>(content, _json))
             : Unauthorized(JsonSerializer.Deserialize<object>(content, _json));
     }
+
+    /// <summary>
+    /// Registro web.
+    /// MODO OFFLINE: no disponible.
+    /// </summary>
+    [HttpPost("registro")]
+    public async Task<IActionResult> RegistroWeb([FromBody] RegistroWebRequest request, CancellationToken ct)
+    {
+        if (!_cbState.CoreAvailable)
+        {
+            return StatusCode(503, new
+            {
+                error   = "Registro no disponible en modo offline",
+                offline = true,
+                hint    = "Por favor intente más tarde"
+            });
+        }
+
+        var response = await _core.PostAsync("/api/v1/auth/registro", request, ct: ct);
+        var content = await response.Content.ReadAsStringAsync(ct);
+
+        return StatusCode((int)response.StatusCode, JsonSerializer.Deserialize<object>(content, _json));
+    }
 }

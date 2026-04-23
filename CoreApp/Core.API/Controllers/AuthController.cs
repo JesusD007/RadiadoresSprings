@@ -16,7 +16,7 @@ public class AuthController(IAuthService authService) : ControllerBase
 
     /// <summary>
     /// Login de usuario o cuenta de servicio.
-    /// IntegrationApp usa este endpoint para obtener su JWT con rol ServicioWeb.
+    /// IntegrationApp usa este endpoint para obtener su JWT con rol Cliente.
     /// </summary>
     [HttpPost("login")]
     [AllowAnonymous]
@@ -37,6 +37,22 @@ public class AuthController(IAuthService authService) : ControllerBase
         if (result is null)
             return Unauthorized(new ApiResponse<AuthResponse>(false, "Refresh token inválido o expirado.", null));
         return Ok(new ApiResponse<AuthResponse>(true, "Token renovado.", result));
+    }
+
+    /// <summary>Registro web de un nuevo cliente. Crea usuario y cliente atómicamente.</summary>
+    [HttpPost("registro")]
+    [AllowAnonymous]
+    public async Task<ActionResult<ApiResponse<UsuarioResponse>>> RegistroWeb([FromBody] RegistroWebRequest req)
+    {
+        try
+        {
+            var usuario = await authService.RegistrarClienteWebAsync(req);
+            return StatusCode(201, new ApiResponse<UsuarioResponse>(true, "Registro exitoso.", usuario));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new ApiResponse<UsuarioResponse>(false, ex.Message, null));
+        }
     }
 
     // ── Endpoints autenticados — cualquier rol ────────────────────────────────

@@ -48,8 +48,8 @@ public class VentasController(IVentaService ventaService) : ControllerBase
     // ── Escritura ─────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Registrar venta. Administrador, Cajero, Vendedor y ServicioWeb.
-    /// ServicioWeb lo usa para aplicar ventas offline acumuladas en IntegrationApp.
+    /// Registrar venta. Administrador, Cajero, Vendedor y Cliente.
+    /// Cliente lo usa para aplicar ventas offline acumuladas en IntegrationApp.
     /// </summary>
     [HttpPost]
     [Authorize(Policy = ApiPolicies.GestionVentas)]
@@ -72,7 +72,7 @@ public class VentasController(IVentaService ventaService) : ControllerBase
 
     /// <summary>
     /// Cancelar venta. Solo Administrador.
-    /// El rol ServicioWeb NO puede cancelar ventas para evitar reversiones no supervisadas.
+    /// El rol Cliente NO puede cancelar ventas para evitar reversiones no supervisadas.
     /// </summary>
     [HttpPost("{id:int}/cancelar")]
     [Authorize(Policy = ApiPolicies.CancelarVentas)]

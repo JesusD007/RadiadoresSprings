@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 using NServiceBus;
 using Scalar.AspNetCore;
 using Serilog;
@@ -146,7 +147,32 @@ try
 
     // ── Controllers + OpenAPI ─────────────────────────────────────────────────
     builder.Services.AddControllers();
-    builder.Services.AddOpenApi();
+    builder.Services.AddOpenApi(opt =>
+    {
+        opt.AddDocumentTransformer((document, context, ct) =>
+        {
+            document.Components ??= new OpenApiComponents();
+            document.Components.SecuritySchemes.Add("Bearer", new OpenApiSecurityScheme
+            {
+                Type = SecuritySchemeType.Http,
+                Scheme = "bearer",
+                BearerFormat = "JWT",
+                Description = "Ingresa tu Token JWT puro (sin escribir la palabra Bearer)."
+            });
+            document.SecurityRequirements.Add(new OpenApiSecurityRequirement
+            {
+                [new OpenApiSecurityScheme
+                {
+                    Reference = new OpenApiReference
+                    {
+                        Type = ReferenceType.SecurityScheme,
+                        Id = "Bearer"
+                    }
+                }] = Array.Empty<string>()
+            });
+            return Task.CompletedTask;
+        });
+    });
 
     // ── Health Checks ─────────────────────────────────────────────────────────
     builder.Services.AddHealthChecks()
@@ -297,7 +323,7 @@ static async Task SeedAsync(CoreDbContext db)
             Email        = "servicio@radiadores.com",
             SucursalId   = sucursal.Id,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(passServicio),
-            Rol          = Core.Domain.Enums.RolUsuario.ServicioWeb,
+            Rol          = Core.Domain.Enums.RolUsuario.Cliente,
             EsActivo     = true
         });
         await db.SaveChangesAsync();

@@ -16,7 +16,7 @@ namespace Core.API.Controllers;
 [Authorize(Policy = ApiPolicies.Autenticado)]
 public class CategoriasController(ICategoriaService categoriaService) : ControllerBase
 {
-    /// <summary>Listar todas las categorías. Todos los roles (ServicioWeb las necesita para sincronizar productos).</summary>
+    /// <summary>Listar todas las categorías. Todos los roles (Cliente las necesita para sincronizar productos).</summary>
     [HttpGet]
     public async Task<ActionResult<ApiResponse<IEnumerable<CategoriaResponse>>>> GetAll()
         => Ok(new ApiResponse<IEnumerable<CategoriaResponse>>(true, null, await categoriaService.GetAllAsync()));
@@ -77,8 +77,8 @@ public class ClientesController(IClienteService clienteService) : ControllerBase
     }
 
     /// <summary>
-    /// Crear cliente. Administrador, Vendedor y ServicioWeb.
-    /// ServicioWeb lo usa para registrar clientes nuevos desde el e-commerce.
+    /// Crear cliente. Administrador, Vendedor y Cliente.
+    /// Cliente lo usa para registrar clientes nuevos desde el e-commerce.
     /// </summary>
     [HttpPost]
     [Authorize(Policy = ApiPolicies.GestionClientes)]
@@ -90,8 +90,8 @@ public class ClientesController(IClienteService clienteService) : ControllerBase
     }
 
     /// <summary>
-    /// Actualizar cliente. Administrador, Vendedor y ServicioWeb.
-    /// ServicioWeb lo usa para sincronizar datos del cliente desde el portal web.
+    /// Actualizar cliente. Administrador, Vendedor y Cliente.
+    /// Cliente lo usa para sincronizar datos del cliente desde el portal web.
     /// </summary>
     [HttpPut("{id:int}")]
     [Authorize(Policy = ApiPolicies.GestionClientes)]
@@ -122,7 +122,7 @@ public class ClientesController(IClienteService clienteService) : ControllerBase
 [Authorize(Policy = ApiPolicies.Autenticado)]
 public class CajaController(ICajaService cajaService) : ControllerBase
 {
-    /// <summary>Listar cajas. Todos los roles (ServicioWeb puede consultar la caja activa para incluirla en ventas).</summary>
+    /// <summary>Listar cajas. Todos los roles (Cliente puede consultar la caja activa para incluirla en ventas).</summary>
     [HttpGet]
     public async Task<ActionResult<ApiResponse<IEnumerable<CajaResponse>>>> GetCajas(
         [FromQuery] int? sucursalId = null)
@@ -141,7 +141,7 @@ public class CajaController(ICajaService cajaService) : ControllerBase
 
     /// <summary>
     /// Abrir sesión de caja. Administrador y Cajero.
-    /// ServicioWeb NO puede abrir cajas — es una operación física que requiere presencia humana.
+    /// Cliente NO puede abrir cajas — es una operación física que requiere presencia humana.
     /// </summary>
     [HttpPost("abrir")]
     [Authorize(Policy = ApiPolicies.GestionCaja)]
@@ -162,7 +162,7 @@ public class CajaController(ICajaService cajaService) : ControllerBase
 
     /// <summary>
     /// Cerrar sesión de caja. Administrador y Cajero.
-    /// ServicioWeb NO puede cerrar cajas — requiere conteo físico de efectivo.
+    /// Cliente NO puede cerrar cajas — requiere conteo físico de efectivo.
     /// </summary>
     [HttpPost("cerrar")]
     [Authorize(Policy = ApiPolicies.GestionCaja)]
@@ -207,8 +207,8 @@ public class OrdenesController(IOrdenService ordenService) : ControllerBase
     }
 
     /// <summary>
-    /// Crear orden. Administrador, Vendedor y ServicioWeb.
-    /// ServicioWeb la usa para registrar órdenes del e-commerce.
+    /// Crear orden. Administrador, Vendedor y Cliente.
+    /// Cliente la usa para registrar órdenes del e-commerce.
     /// </summary>
     [HttpPost]
     [Authorize(Policy = ApiPolicies.GestionOrdenes)]
@@ -227,8 +227,8 @@ public class OrdenesController(IOrdenService ordenService) : ControllerBase
     }
 
     /// <summary>
-    /// Cambiar estado de una orden. Administrador, Vendedor y ServicioWeb.
-    /// ServicioWeb lo usa para notificar cambios de estado desde el sistema de envíos.
+    /// Cambiar estado de una orden. Administrador, Vendedor y Cliente.
+    /// Cliente lo usa para notificar cambios de estado desde el sistema de envíos.
     /// </summary>
     [HttpPatch("{id:int}/estado")]
     [Authorize(Policy = ApiPolicies.GestionOrdenes)]
@@ -279,8 +279,8 @@ public class PagosController(IPagoService pagoService) : ControllerBase
     }
 
     /// <summary>
-    /// Registrar pago. Administrador, Cajero y ServicioWeb.
-    /// ServicioWeb lo usa para registrar cobros procesados en la pasarela de pagos online.
+    /// Registrar pago. Administrador, Cajero y Cliente.
+    /// Cliente lo usa para registrar cobros procesados en la pasarela de pagos online.
     /// </summary>
     [HttpPost]
     [Authorize(Policy = ApiPolicies.GestionPagos)]
@@ -324,7 +324,7 @@ public class CuentasCobrarController(ICuentaCobrarService cuentaCobrarService) :
 
     /// <summary>
     /// Crear cuenta por cobrar. Administrador y Cajero.
-    /// ServicioWeb NO puede abrir cuentas de crédito — requiere aprobación humana.
+    /// Cliente NO puede abrir cuentas de crédito — requiere aprobación humana.
     /// </summary>
     [HttpPost]
     [Authorize(Policy = ApiPolicies.GestionCaja)]

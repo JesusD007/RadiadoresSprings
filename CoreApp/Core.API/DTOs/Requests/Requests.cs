@@ -4,6 +4,7 @@ namespace Core.API.DTOs.Requests;
 public record LoginRequest(string Username, string Password);
 public record RefreshTokenRequest(string RefreshToken);
 public record CambiarPasswordRequest(string PasswordActual, string PasswordNuevo);
+public record RegistroWebRequest(string Username, string Password, string Nombre, string Apellido, string Email);
 
 // ── Usuarios ──────────────────────────────────────────────────────────────────
 public record CrearUsuarioRequest(

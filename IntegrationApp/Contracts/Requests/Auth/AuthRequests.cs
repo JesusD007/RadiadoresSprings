@@ -13,3 +13,12 @@ public record RefreshRequest
 {
     [Required] public string RefreshToken { get; init; } = string.Empty;
 }
+
+public record RegistroWebRequest
+{
+    [Required] public string Username { get; init; } = string.Empty;
+    [Required] public string Password { get; init; } = string.Empty;
+    [Required] public string Nombre { get; init; } = string.Empty;
+    [Required] public string Apellido { get; init; } = string.Empty;
+    [Required] public string Email { get; init; } = string.Empty;
+}

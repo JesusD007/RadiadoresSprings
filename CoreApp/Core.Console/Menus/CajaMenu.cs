@@ -115,7 +115,7 @@ public static class CajaMenu
         .Header("[gold1]Sesión activa[/]").Border(BoxBorder.Rounded));
 
         var montoCierre = AnsiConsole.Ask<decimal>("\nMonto físico en caja (conteo real):");
-        var obs         = AnsiConsole.Ask<string>("Observaciones [grey](enter para omitir)[/]:");
+        var obs         = AnsiConsole.Prompt(new TextPrompt<string>("Observaciones [grey](enter para omitir)[/]:").AllowEmpty());
 
         if (!AnsiConsole.Confirm($"¿Confirmar cierre de sesión #{sesionActiva.Id}?")) return;
 

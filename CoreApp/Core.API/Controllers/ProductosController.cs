@@ -34,7 +34,7 @@ public class ProductosController(IProductoService productoService) : ControllerB
             : Ok(new ApiResponse<ProductoResponse>(true, null, p));
     }
 
-    /// <summary>Obtener producto por código. Todos los roles (incluye ServicioWeb para consulta de precios).</summary>
+    /// <summary>Obtener producto por código. Todos los roles (incluye Cliente para consulta de precios).</summary>
     [HttpGet("codigo/{codigo}")]
     public async Task<ActionResult<ApiResponse<ProductoResponse>>> GetByCodigo(string codigo)
     {
@@ -84,8 +84,8 @@ public class ProductosController(IProductoService productoService) : ControllerB
     }
 
     /// <summary>
-    /// Ajustar stock. Administrador, Almacenista y ServicioWeb.
-    /// ServicioWeb lo usa para aplicar transacciones offline desde IntegrationApp.
+    /// Ajustar stock. Administrador, Almacenista y Cliente.
+    /// Cliente lo usa para aplicar transacciones offline desde IntegrationApp.
     /// </summary>
     [HttpPatch("{id:int}/stock")]
     [Authorize(Policy = ApiPolicies.SincronizacionOffline)]

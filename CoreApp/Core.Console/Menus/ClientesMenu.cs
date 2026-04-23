@@ -124,10 +124,10 @@ public static class ClientesMenu
         AnsiConsole.MarkupLine("[green bold]➕ Nuevo cliente[/]\n");
 
         var nombre   = AnsiConsole.Ask<string>("Nombre:");
-        var apellido = AnsiConsole.Ask<string>("Apellido [grey](enter para omitir)[/]:");
-        var email    = AnsiConsole.Ask<string>("Email [grey](enter para omitir)[/]:");
-        var telefono = AnsiConsole.Ask<string>("Teléfono [grey](enter para omitir)[/]:");
-        var rfc      = AnsiConsole.Ask<string>("RFC [grey](enter para omitir)[/]:");
+        var apellido = AnsiConsole.Prompt(new TextPrompt<string>("Apellido [grey](enter para omitir)[/]:").AllowEmpty());
+        var email    = AnsiConsole.Prompt(new TextPrompt<string>("Email [grey](enter para omitir)[/]:").AllowEmpty());
+        var telefono = AnsiConsole.Prompt(new TextPrompt<string>("Teléfono [grey](enter para omitir)[/]:").AllowEmpty());
+        var rfc      = AnsiConsole.Prompt(new TextPrompt<string>("RFC [grey](enter para omitir)[/]:").AllowEmpty());
         var tipo     = AnsiConsole.Prompt(
             new SelectionPrompt<string>().Title("Tipo de cliente:")
                 .AddChoices("Regular", "Mayorista", "VIP", "Anonimo"));
@@ -186,7 +186,7 @@ public static class ClientesMenu
         var metodo    = AnsiConsole.Prompt(
             new SelectionPrompt<string>().Title("Método:")
                 .AddChoices("Efectivo", "TarjetaCredito", "TarjetaDebito", "Transferencia"));
-        var referencia = AnsiConsole.Ask<string>("Referencia [grey](enter para omitir)[/]:");
+        var referencia = AnsiConsole.Prompt(new TextPrompt<string>("Referencia [grey](enter para omitir)[/]:").AllowEmpty());
 
         var req = new RegistrarPagoRequest(
             clienteId,

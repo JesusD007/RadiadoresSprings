@@ -95,6 +95,51 @@ public class AuthService(CoreDbContext db, IConfiguration config, ILogger<AuthSe
             .ToListAsync();
     }
 
+    public async Task<UsuarioResponse> RegistrarClienteWebAsync(RegistroWebRequest req)
+    {
+        if (await db.Usuarios.AnyAsync(u => u.Username == req.Username))
+            throw new InvalidOperationException($"El username '{req.Username}' ya existe.");
+        
+        if (await db.Usuarios.AnyAsync(u => u.Email == req.Email))
+            throw new InvalidOperationException($"El email '{req.Email}' ya existe en Usuarios.");
+
+        using var tx = await db.Database.BeginTransactionAsync();
+        try
+        {
+            var usuario = new Usuario
+            {
+                Username = req.Username,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.Password),
+                Nombre = req.Nombre,
+                Apellido = req.Apellido,
+                Email = req.Email,
+                Rol = RolUsuario.Cliente,
+                SucursalId = 1 // Sucursal principal por defecto para la web
+            };
+            db.Usuarios.Add(usuario);
+
+            var cliente = new Cliente
+            {
+                Nombre = req.Nombre,
+                Apellido = req.Apellido,
+                Email = req.Email,
+                Tipo = TipoCliente.Regular
+            };
+            db.Clientes.Add(cliente);
+
+            await db.SaveChangesAsync();
+            await tx.CommitAsync();
+
+            await db.Entry(usuario).Reference(u => u.Sucursal).LoadAsync();
+            return MapUsuario(usuario);
+        }
+        catch
+        {
+            await tx.RollbackAsync();
+            throw;
+        }
+    }
+
     private (string Token, DateTime Expiry) GenerarToken(Usuario usuario)
     {
         var key = config["Jwt:Secret"] ?? "RadiadoresSpringsSecretKey2026!XYZ";

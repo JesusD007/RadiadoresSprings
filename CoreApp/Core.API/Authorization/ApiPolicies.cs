@@ -8,15 +8,15 @@ namespace Core.API.Authorization;
 ///   Cajero         — operaciones de punto de venta y caja
 ///   Vendedor       — ventas, clientes y órdenes
 ///   Almacenista    — gestión de inventario
-///   ServicioWeb    — cuenta machine-to-machine para IntegrationApp (P3)
+///   Cliente    — cuenta machine-to-machine para IntegrationApp (P3)
 ///
 /// Flujo M2M (machine-to-machine):
 ///   1. IntegrationApp llama POST /api/v1/auth/login con las credenciales del
-///      usuario "servicio_web" (rol ServicioWeb).
-///   2. Recibe un JWT firmado con claim role=ServicioWeb.
+///      usuario "servicio_web" (rol Cliente).
+///   2. Recibe un JWT firmado con claim role=Cliente.
 ///   3. Incluye el token en Authorization: Bearer <token> en todas sus llamadas.
 ///   4. Solo puede acceder a los endpoints marcados con las políticas que
-///      incluyen el rol ServicioWeb.
+///      incluyen el rol Cliente.
 /// </summary>
 public static class ApiPolicies
 {
@@ -32,7 +32,7 @@ public static class ApiPolicies
     public const string GestionInventario = "GestionInventario";
 
     /// <summary>
-    /// Ajuste de stock — incluye ServicioWeb para sincronización offline
+    /// Ajuste de stock — incluye Cliente para sincronización offline
     /// (IntegrationApp aplica transacciones acumuladas offline).
     /// </summary>
     public const string SincronizacionOffline = "SincronizacionOffline";
@@ -46,20 +46,20 @@ public static class ApiPolicies
     /// <summary>Apertura y cierre de sesiones de caja.</summary>
     public const string GestionCaja = "GestionCaja";
 
-    /// <summary>Crear y gestionar órdenes (incluye ServicioWeb para e-commerce).</summary>
+    /// <summary>Crear y gestionar órdenes (incluye Cliente para e-commerce).</summary>
     public const string GestionOrdenes = "GestionOrdenes";
 
-    /// <summary>Crear y actualizar clientes (incluye ServicioWeb).</summary>
+    /// <summary>Crear y actualizar clientes (incluye Cliente).</summary>
     public const string GestionClientes = "GestionClientes";
 
-    /// <summary>Registrar pagos (incluye ServicioWeb para cobros online).</summary>
+    /// <summary>Registrar pagos (incluye Cliente para cobros online).</summary>
     public const string GestionPagos = "GestionPagos";
 
     // ── Grupos de roles por política ──────────────────────────────────────────
     // Usados en AddAuthorization para construir cada policy.
 
     public static readonly string[] Roles_Autenticado =
-        ["Administrador", "Cajero", "Vendedor", "Almacenista", "ServicioWeb"];
+        ["Administrador", "Cajero", "Vendedor", "Almacenista", "Cliente"];
 
     public static readonly string[] Roles_AdminSistema =
         ["Administrador"];
@@ -68,10 +68,10 @@ public static class ApiPolicies
         ["Administrador", "Almacenista"];
 
     public static readonly string[] Roles_SincronizacionOffline =
-        ["Administrador", "Almacenista", "ServicioWeb"];
+        ["Administrador", "Almacenista", "Cliente"];
 
     public static readonly string[] Roles_GestionVentas =
-        ["Administrador", "Cajero", "Vendedor", "ServicioWeb"];
+        ["Administrador", "Cajero", "Vendedor", "Cliente"];
 
     public static readonly string[] Roles_CancelarVentas =
         ["Administrador"];
@@ -80,11 +80,11 @@ public static class ApiPolicies
         ["Administrador", "Cajero"];
 
     public static readonly string[] Roles_GestionOrdenes =
-        ["Administrador", "Vendedor", "ServicioWeb"];
+        ["Administrador", "Vendedor", "Cliente"];
 
     public static readonly string[] Roles_GestionClientes =
-        ["Administrador", "Vendedor", "ServicioWeb"];
+        ["Administrador", "Vendedor", "Cliente"];
 
     public static readonly string[] Roles_GestionPagos =
-        ["Administrador", "Cajero", "ServicioWeb"];
+        ["Administrador", "Cajero", "Cliente"];
 }

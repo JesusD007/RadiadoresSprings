@@ -10,6 +10,7 @@ public interface IAuthService
     Task<bool> CambiarPasswordAsync(int usuarioId, string passwordActual, string passwordNuevo);
     Task<UsuarioResponse?> CrearUsuarioAsync(CrearUsuarioRequest req);
     Task<IEnumerable<UsuarioResponse>> GetUsuariosAsync();
+    Task<UsuarioResponse> RegistrarClienteWebAsync(RegistroWebRequest request);
 }
 
 public interface IProductoService

@@ -12,9 +12,13 @@ using Spectre.Console;
 // ─────────────────────────────────────────────────────────────────────────────
 // Configuración
 // ─────────────────────────────────────────────────────────────────────────────
+var env = Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") ?? "Production";
+
 var config = new ConfigurationBuilder()
     .SetBasePath(AppContext.BaseDirectory)
     .AddJsonFile("appsettings.json", optional: true)
+    .AddJsonFile($"appsettings.{env}.json", optional: true)
+    .AddEnvironmentVariables()
     .Build();
 
 Log.Logger = new LoggerConfiguration()

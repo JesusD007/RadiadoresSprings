@@ -16,7 +16,7 @@ public class UsuarioMirror
     /// <summary>Hash BCrypt sincronizado desde Core. Nunca se modifica localmente.</summary>
     public string PasswordHash { get; set; } = string.Empty;
 
-    /// <summary>Rol como string (ej. "Administrador", "ServicioWeb", "Cajero").</summary>
+    /// <summary>Rol como string (ej. "Administrador", "Cliente", "Cajero").</summary>
     public string Rol { get; set; } = string.Empty;
 
     public string Nombre { get; set; } = string.Empty;

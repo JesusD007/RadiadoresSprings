@@ -11,7 +11,7 @@ public enum RolUsuario
     /// Usada por IntegrationApp (P3) para consumir los endpoints de Core.API vía HTTP + JWT.
     /// No tiene acceso a la consola ni a operaciones administrativas.
     /// </summary>
-    ServicioWeb   = 5
+    Cliente   = 5
 }
 
 public enum EstadoVenta

@@ -165,7 +165,7 @@ public static class ProductosMenu
 
         var codigo    = AnsiConsole.Ask<string>("Código:");
         var nombre    = AnsiConsole.Ask<string>("Nombre:");
-        var descripcion = AnsiConsole.Ask<string>("Descripción [grey](enter para omitir)[/]:");
+        var descripcion = AnsiConsole.Prompt(new TextPrompt<string>("Descripción [grey](enter para omitir)[/]:").AllowEmpty());
         var precio    = AnsiConsole.Ask<decimal>("Precio:");
         var oferta    = AnsiConsole.Ask<decimal>("Precio oferta [grey](0 = sin oferta)[/]:");
         var stock     = AnsiConsole.Ask<int>("Stock inicial:");
