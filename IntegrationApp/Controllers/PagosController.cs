@@ -2,6 +2,7 @@ using IntegrationApp.Contracts.Requests.Pagos;
 using IntegrationApp.Contracts.Responses.Pagos;
 using IntegrationApp.Data;
 using IntegrationApp.Domain.Entities;
+using IntegrationApp.Helpers;
 using IntegrationApp.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -53,7 +54,7 @@ public class PagosController : ControllerBase
             var content = await response.Content.ReadAsStringAsync(ct);
 
             return response.IsSuccessStatusCode
-                ? Ok(JsonSerializer.Deserialize<SimularPagoResponse>(content, _json))
+                ? Ok(ProxyHelper.Unwrap<SimularPagoResponse>(content, _json))
                 : StatusCode((int)response.StatusCode, JsonSerializer.Deserialize<object>(content, _json));
         }
 

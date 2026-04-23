@@ -2,6 +2,8 @@ using IntegrationApp.Contracts.Requests.Clientes;
 using IntegrationApp.Contracts.Responses.Clientes;
 using IntegrationApp.Data;
 using IntegrationApp.Domain.Entities;
+using IntegrationApp.Helpers;
+using IntegrationApp.Mappings;
 using IntegrationApp.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -64,7 +66,7 @@ public class ClientesController : ControllerBase
             if (response.IsSuccessStatusCode)
             {
                 var content = await response.Content.ReadAsStringAsync(ct);
-                return Ok(JsonSerializer.Deserialize<ClienteDto>(content, _json));
+                return Ok(ProxyHelper.Unwrap<ClienteDto>(content, _json));
             }
 
             return response.StatusCode == System.Net.HttpStatusCode.NotFound
@@ -103,7 +105,7 @@ public class ClientesController : ControllerBase
             if (response.IsSuccessStatusCode)
             {
                 var content = await response.Content.ReadAsStringAsync(ct);
-                return Ok(JsonSerializer.Deserialize<IReadOnlyList<ClienteDto>>(content, _json));
+                return Ok(ProxyHelper.Unwrap<IReadOnlyList<ClienteDto>>(content, _json));
             }
 
             return StatusCode((int)response.StatusCode);

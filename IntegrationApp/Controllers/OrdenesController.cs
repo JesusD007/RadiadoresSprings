@@ -2,6 +2,7 @@ using IntegrationApp.Contracts.Requests.Ordenes;
 using IntegrationApp.Contracts.Responses.Ordenes;
 using IntegrationApp.Data;
 using IntegrationApp.Domain.Entities;
+using IntegrationApp.Helpers;
 using IntegrationApp.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -53,10 +54,9 @@ public class OrdenesController : ControllerBase
             var response = await _core.PostAsync("/api/v1/ordenes", request, bearerToken: Token, ct: ct);
             var content = await response.Content.ReadAsStringAsync(ct);
 
-            if (response.StatusCode == System.Net.HttpStatusCode.Accepted ||
-                response.StatusCode == System.Net.HttpStatusCode.Created)
+            if (response.IsSuccessStatusCode)
             {
-                var orden = JsonSerializer.Deserialize<OrdenCreadaResponse>(content, _json)!;
+                var orden = ProxyHelper.Unwrap<OrdenCreadaResponse>(content, _json)!;
                 var pollUrl = $"{Request.Scheme}://{Request.Host}/api/v1/ordenes/{orden.OrdenId}/estado";
                 return Accepted(new OrdenCreadaResponse
                 {
@@ -116,7 +116,7 @@ public class OrdenesController : ControllerBase
             var content = await response.Content.ReadAsStringAsync(ct);
 
             return response.IsSuccessStatusCode
-                ? Ok(JsonSerializer.Deserialize<EstadoOrdenDto>(content, _json))
+                ? Ok(ProxyHelper.Unwrap<EstadoOrdenDto>(content, _json))
                 : StatusCode((int)response.StatusCode, JsonSerializer.Deserialize<object>(content, _json));
         }
 

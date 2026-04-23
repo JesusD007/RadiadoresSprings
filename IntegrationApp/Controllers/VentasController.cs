@@ -2,6 +2,7 @@ using IntegrationApp.Contracts.Requests.Ventas;
 using IntegrationApp.Contracts.Responses.Ventas;
 using IntegrationApp.Data;
 using IntegrationApp.Domain.Entities;
+using IntegrationApp.Helpers;
 using IntegrationApp.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -69,7 +70,7 @@ public class VentasController : ControllerBase
 
             if (response.IsSuccessStatusCode)
             {
-                var ventaResp = JsonSerializer.Deserialize<VentaResponse>(content, _json)!;
+                var ventaResp = ProxyHelper.Unwrap<VentaResponse>(content, _json)!;
 
                 // Registrar idempotencia
                 _db.IdempotencyLogs.Add(new IdempotencyLog

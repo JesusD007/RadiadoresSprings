@@ -1,6 +1,7 @@
 using IntegrationApp.Contracts.Requests.CuentasCobrar;
 using IntegrationApp.Contracts.Responses.CuentasCobrar;
 using IntegrationApp.Data;
+using IntegrationApp.Helpers;
 using IntegrationApp.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -56,7 +57,7 @@ public class CuentasCobrarController : ControllerBase
             var content = await response.Content.ReadAsStringAsync(ct);
 
             return response.IsSuccessStatusCode
-                ? Ok(JsonSerializer.Deserialize<IReadOnlyList<CuentaPorCobrarDto>>(content, _json))
+                ? Ok(ProxyHelper.Unwrap<IReadOnlyList<CuentaPorCobrarDto>>(content, _json))
                 : StatusCode((int)response.StatusCode, JsonSerializer.Deserialize<object>(content, _json));
         }
 

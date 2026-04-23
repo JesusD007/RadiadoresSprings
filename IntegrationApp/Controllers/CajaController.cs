@@ -3,6 +3,7 @@ using IntegrationApp.Contracts.Responses.Caja;
 using IntegrationApp.Data;
 using IntegrationApp.Domain.Entities;
 using IntegrationApp.Services;
+using IntegrationApp.Helpers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -54,7 +55,7 @@ public class CajaController : ControllerBase
             var content = await response.Content.ReadAsStringAsync(ct);
 
             return response.IsSuccessStatusCode
-                ? Ok(JsonSerializer.Deserialize<InicioDiaResponse>(content, _json))
+                ? Ok(ProxyHelper.Unwrap<InicioDiaResponse>(content, _json))
                 : StatusCode((int)response.StatusCode, JsonSerializer.Deserialize<object>(content, _json));
         }
 
@@ -130,7 +131,7 @@ public class CajaController : ControllerBase
             var content = await response.Content.ReadAsStringAsync(ct);
 
             return response.IsSuccessStatusCode
-                ? Ok(JsonSerializer.Deserialize<MovimientoCajaResponse>(content, _json))
+                ? Ok(ProxyHelper.Unwrap<MovimientoCajaResponse>(content, _json))
                 : StatusCode((int)response.StatusCode, JsonSerializer.Deserialize<object>(content, _json));
         }
 
@@ -192,7 +193,7 @@ public class CajaController : ControllerBase
             var content = await response.Content.ReadAsStringAsync(ct);
 
             return response.IsSuccessStatusCode
-                ? Ok(JsonSerializer.Deserialize<CierreDiaResponse>(content, _json))
+                ? Ok(ProxyHelper.Unwrap<CierreDiaResponse>(content, _json))
                 : StatusCode((int)response.StatusCode, JsonSerializer.Deserialize<object>(content, _json));
         }
 

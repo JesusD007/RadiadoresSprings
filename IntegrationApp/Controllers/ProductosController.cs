@@ -1,6 +1,7 @@
 using IntegrationApp.Contracts.Responses.Productos;
 using IntegrationApp.Data;
 using IntegrationApp.Mappings;
+using IntegrationApp.Helpers;
 using IntegrationApp.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -54,7 +55,12 @@ public class ProductosController : ControllerBase
                 if (response.IsSuccessStatusCode)
                 {
                     var content = await response.Content.ReadAsStringAsync(ct);
-                    return Ok(JsonSerializer.Deserialize<ProductoPagedResult>(content, _json));
+                    var result = ProxyHelper.Unwrap<ProductoPagedResult>(content, _json);
+                    if (result != null)
+                    {
+                        result.FromMirror = false;
+                        return Ok(result);
+                    }
                 }
             }
             catch (Exception ex)
@@ -97,7 +103,7 @@ public class ProductosController : ControllerBase
                 if (response.IsSuccessStatusCode)
                 {
                     var content = await response.Content.ReadAsStringAsync(ct);
-                    return Ok(JsonSerializer.Deserialize<ProductoDetalleDto>(content, _json));
+                    return Ok(ProxyHelper.Unwrap<ProductoDetalleDto>(content, _json));
                 }
                 if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
                     return NotFound(new { error = "Producto no encontrado" });
