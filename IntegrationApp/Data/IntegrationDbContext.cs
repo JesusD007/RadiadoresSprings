@@ -11,6 +11,10 @@ public class IntegrationDbContext : DbContext
     public DbSet<ProductoMirror> ProductosMirror => Set<ProductoMirror>();
     public DbSet<UsuarioMirror> UsuariosMirror => Set<UsuarioMirror>();
     public DbSet<ClienteMirror> ClientesMirror => Set<ClienteMirror>();
+    public DbSet<SucursalMirror> SucursalesMirror => Set<SucursalMirror>();
+    public DbSet<CategoriaMirror> CategoriasMirror => Set<CategoriaMirror>();
+    public DbSet<CajaMirror> CajasMirror => Set<CajaMirror>();
+    public DbSet<CuentaCobrarMirror> CuentasCobrarMirror => Set<CuentaCobrarMirror>();
 
     // ── Operaciones offline ───────────────────────────────────────────────────
     public DbSet<VentaOfflinePendiente> VentasOfflinePendientes => Set<VentaOfflinePendiente>();
@@ -70,6 +74,49 @@ public class IntegrationDbContext : DbContext
             e.Property(x => x.LimiteCredito).HasPrecision(18, 2);
             e.Property(x => x.SaldoPendiente).HasPrecision(18, 2);
             e.HasIndex(x => x.CoreId);
+        });
+
+        // ── SucursalMirror ────────────────────────────────────────────────────
+        modelBuilder.Entity<SucursalMirror>(e =>
+        {
+            e.ToTable("SucursalMirror");
+            e.HasKey(x => x.CoreId);
+            e.Property(x => x.CoreId).ValueGeneratedNever();
+            e.Property(x => x.Nombre).HasMaxLength(150).IsRequired();
+            e.Property(x => x.Direccion).HasMaxLength(300);
+            e.Property(x => x.Telefono).HasMaxLength(30);
+        });
+
+        // ── CategoriaMirror ───────────────────────────────────────────────────
+        modelBuilder.Entity<CategoriaMirror>(e =>
+        {
+            e.ToTable("CategoriaMirror");
+            e.HasKey(x => x.CoreId);
+            e.Property(x => x.CoreId).ValueGeneratedNever();
+            e.Property(x => x.Nombre).HasMaxLength(100).IsRequired();
+            e.Property(x => x.Descripcion).HasMaxLength(300);
+        });
+
+        // ── CajaMirror ────────────────────────────────────────────────────────
+        modelBuilder.Entity<CajaMirror>(e =>
+        {
+            e.ToTable("CajaMirror");
+            e.HasKey(x => x.CoreId);
+            e.Property(x => x.CoreId).ValueGeneratedNever();
+            e.Property(x => x.Nombre).HasMaxLength(100).IsRequired();
+            e.HasIndex(x => x.SucursalId);
+        });
+
+        // ── CuentaCobrarMirror ────────────────────────────────────────────────
+        modelBuilder.Entity<CuentaCobrarMirror>(e =>
+        {
+            e.ToTable("CuentaCobrarMirror");
+            e.HasKey(x => x.CoreId);
+            e.Property(x => x.CoreId).ValueGeneratedNever();
+            e.Property(x => x.MontoTotal).HasPrecision(18, 2);
+            e.Property(x => x.SaldoPendiente).HasPrecision(18, 2);
+            e.Property(x => x.Estado).HasMaxLength(30).IsRequired();
+            e.HasIndex(x => x.ClienteId);
         });
 
         // ── SesionCajaMirror ──────────────────────────────────────────────────

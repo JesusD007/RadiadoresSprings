@@ -22,6 +22,9 @@ public record ProductoResponse(
     int CategoriaId, string NombreCategoria, bool EsActivo,
     DateTime FechaCreacion);
 
+// ── Sucursales ────────────────────────────────────────────────────────────────
+public record SucursalResponse(int Id, string Nombre, string? Direccion, string? Telefono, bool EsActiva);
+
 // ── Categorías ────────────────────────────────────────────────────────────────
 public record CategoriaResponse(int Id, string Nombre, string? Descripcion, int TotalProductos, bool EsActiva);
 

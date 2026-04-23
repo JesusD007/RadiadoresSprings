@@ -10,6 +10,23 @@ using System.Security.Claims;
 
 namespace Core.API.Controllers;
 
+// ── SucursalesController ──────────────────────────────────────────────────────
+[ApiController]
+[Route("api/v1/sucursales")]
+[Authorize(Policy = ApiPolicies.Autenticado)]
+public class SucursalesController(CoreDbContext db) : ControllerBase
+{
+    /// <summary>Listar todas las sucursales.</summary>
+    [HttpGet]
+    public async Task<ActionResult<ApiResponse<IEnumerable<SucursalResponse>>>> GetAll()
+    {
+        var sucursales = await db.Sucursales
+            .Select(s => new SucursalResponse(s.Id, s.Nombre, s.Direccion, s.Telefono, s.EsActiva))
+            .ToListAsync();
+        return Ok(new ApiResponse<IEnumerable<SucursalResponse>>(true, null, sucursales));
+    }
+}
+
 // ── CategoriasController ──────────────────────────────────────────────────────
 [ApiController]
 [Route("api/v1/categorias")]

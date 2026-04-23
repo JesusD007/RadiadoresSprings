@@ -99,6 +99,10 @@ public class MirrorSyncService : BackgroundService
             await SyncProductosAsync(client, ct);
             await SyncUsuariosAsync(client, ct);
             await SyncClientesAsync(client, ct);
+            await SyncSucursalesAsync(client, ct);
+            await SyncCategoriasAsync(client, ct);
+            await SyncCajasAsync(client, ct);
+            await SyncCuentasCobrarAsync(client, ct);
 
             _cbState.UpdateLastSync();
         }
@@ -326,6 +330,190 @@ public class MirrorSyncService : BackgroundService
         }
     }
 
+
+    // ── SucursalMirror ─────────────────────────────────────────────────────────
+
+    private async Task SyncSucursalesAsync(HttpClient client, CancellationToken ct)
+    {
+        _logger.LogInformation("[MirrorSync] Sincronizando SucursalMirror...");
+        try
+        {
+            var response = await client.GetAsync("/api/v1/sucursales", ct);
+            if (!response.IsSuccessStatusCode) return;
+
+            var content = await response.Content.ReadAsStringAsync(ct);
+            var sucursales = ProxyHelper.Unwrap<List<SucursalItemRaw>>(content, _json);
+            if (sucursales == null) return;
+
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<IntegrationDbContext>();
+
+            foreach (var item in sucursales)
+            {
+                var existing = await db.SucursalesMirror.FindAsync([item.Id], ct);
+                if (existing is null)
+                {
+                    db.SucursalesMirror.Add(new SucursalMirror
+                    {
+                        CoreId = item.Id, Nombre = item.Nombre,
+                        Direccion = item.Direccion, Telefono = item.Telefono,
+                        EsActivo = item.EsActiva, UltimaSync = DateTime.UtcNow
+                    });
+                }
+                else
+                {
+                    existing.Nombre = item.Nombre; existing.Direccion = item.Direccion;
+                    existing.Telefono = item.Telefono; existing.EsActivo = item.EsActiva;
+                    existing.UltimaSync = DateTime.UtcNow;
+                }
+            }
+            await db.SaveChangesAsync(ct);
+            _logger.LogInformation("[MirrorSync] SucursalMirror: {C} registros", sucursales.Count);
+        }
+        catch (Exception ex) { _logger.LogError(ex, "[MirrorSync] Error SucursalMirror"); }
+    }
+
+    // ── CategoriaMirror ────────────────────────────────────────────────────────
+
+    private async Task SyncCategoriasAsync(HttpClient client, CancellationToken ct)
+    {
+        _logger.LogInformation("[MirrorSync] Sincronizando CategoriaMirror...");
+        try
+        {
+            var response = await client.GetAsync("/api/v1/categorias", ct);
+            if (!response.IsSuccessStatusCode) return;
+
+            var content = await response.Content.ReadAsStringAsync(ct);
+            var categorias = ProxyHelper.Unwrap<List<CategoriaItemRaw>>(content, _json);
+            if (categorias == null) return;
+
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<IntegrationDbContext>();
+
+            foreach (var item in categorias)
+            {
+                var existing = await db.CategoriasMirror.FindAsync([item.Id], ct);
+                if (existing is null)
+                {
+                    db.CategoriasMirror.Add(new CategoriaMirror
+                    {
+                        CoreId = item.Id, Nombre = item.Nombre,
+                        Descripcion = item.Descripcion, EsActivo = item.EsActiva,
+                        UltimaSync = DateTime.UtcNow
+                    });
+                }
+                else
+                {
+                    existing.Nombre = item.Nombre; existing.Descripcion = item.Descripcion;
+                    existing.EsActivo = item.EsActiva; existing.UltimaSync = DateTime.UtcNow;
+                }
+            }
+            await db.SaveChangesAsync(ct);
+            _logger.LogInformation("[MirrorSync] CategoriaMirror: {C} registros", categorias.Count);
+        }
+        catch (Exception ex) { _logger.LogError(ex, "[MirrorSync] Error CategoriaMirror"); }
+    }
+
+    // ── CajaMirror ─────────────────────────────────────────────────────────────
+
+    private async Task SyncCajasAsync(HttpClient client, CancellationToken ct)
+    {
+        _logger.LogInformation("[MirrorSync] Sincronizando CajaMirror...");
+        try
+        {
+            var response = await client.GetAsync("/api/v1/caja", ct);
+            if (!response.IsSuccessStatusCode) return;
+
+            var content = await response.Content.ReadAsStringAsync(ct);
+            var cajas = ProxyHelper.Unwrap<List<CajaItemRaw>>(content, _json);
+            if (cajas == null) return;
+
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<IntegrationDbContext>();
+
+            foreach (var item in cajas)
+            {
+                var existing = await db.CajasMirror.FindAsync([item.Id], ct);
+                if (existing is null)
+                {
+                    db.CajasMirror.Add(new CajaMirror
+                    {
+                        CoreId = item.Id, Nombre = item.Nombre,
+                        SucursalId = item.SucursalId, EsActiva = item.EsActiva,
+                        UltimaSync = DateTime.UtcNow
+                    });
+                }
+                else
+                {
+                    existing.Nombre = item.Nombre; existing.SucursalId = item.SucursalId;
+                    existing.EsActiva = item.EsActiva; existing.UltimaSync = DateTime.UtcNow;
+                }
+            }
+            await db.SaveChangesAsync(ct);
+            _logger.LogInformation("[MirrorSync] CajaMirror: {C} registros", cajas.Count);
+        }
+        catch (Exception ex) { _logger.LogError(ex, "[MirrorSync] Error CajaMirror"); }
+    }
+
+    // ── CuentaCobrarMirror ─────────────────────────────────────────────────────
+
+    private async Task SyncCuentasCobrarAsync(HttpClient client, CancellationToken ct)
+    {
+        _logger.LogInformation("[MirrorSync] Sincronizando CuentaCobrarMirror...");
+        try
+        {
+            int page = 1;
+            const int pageSize = 100;
+            int total = 0;
+
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<IntegrationDbContext>();
+
+            while (true)
+            {
+                // Solo traemos cuentas Pendientes o Vencidas (no Canceladas ni Pagadas, para ahorrar espacio)
+                var response = await client.GetAsync(
+                    $"/api/v1/cuentas-cobrar?pagina={page}&tamano={pageSize}&estado=Pendiente", ct);
+
+                if (!response.IsSuccessStatusCode) break;
+
+                var content = await response.Content.ReadAsStringAsync(ct);
+                var result = ProxyHelper.Unwrap<CuentaCobrarPagedResultRaw>(content, _json);
+                if (result?.Items == null || result.Items.Count == 0) break;
+
+                foreach (var item in result.Items)
+                {
+                    var existing = await db.CuentasCobrarMirror.FindAsync([item.Id], ct);
+                    if (existing is null)
+                    {
+                        db.CuentasCobrarMirror.Add(new CuentaCobrarMirror
+                        {
+                            CoreId = item.Id, VentaId = item.VentaId, ClienteId = item.ClienteId,
+                            MontoTotal = item.MontoTotal, SaldoPendiente = item.SaldoPendiente,
+                            FechaVencimiento = item.FechaVencimiento, Estado = item.Estado,
+                            UltimaSync = DateTime.UtcNow
+                        });
+                    }
+                    else
+                    {
+                        existing.VentaId = item.VentaId; existing.ClienteId = item.ClienteId;
+                        existing.MontoTotal = item.MontoTotal; existing.SaldoPendiente = item.SaldoPendiente;
+                        existing.FechaVencimiento = item.FechaVencimiento; existing.Estado = item.Estado;
+                        existing.UltimaSync = DateTime.UtcNow;
+                    }
+                    total++;
+                }
+
+                await db.SaveChangesAsync(ct);
+                if (page * pageSize >= result.Total) break;
+                page++;
+            }
+
+            _logger.LogInformation("[MirrorSync] CuentaCobrarMirror: {Count} registros", total);
+        }
+        catch (Exception ex) { _logger.LogError(ex, "[MirrorSync] Error CuentaCobrarMirror"); }
+    }
+
     // ── Mappers ProductoMirror ────────────────────────────────────────────────
 
     private static ProductoMirror MapProducto(ProductoItemRaw item) => new()
@@ -363,4 +551,12 @@ public class MirrorSyncService : BackgroundService
     private record ClienteItemRaw(int Id, string Nombre, string? Apellido, string? Email,
         string? Telefono, string? Direccion, string? RFC, string? Tipo,
         decimal LimiteCredito, decimal SaldoPendiente, bool EsActivo);
+
+    private record SucursalItemRaw(int Id, string Nombre, string? Direccion, string? Telefono, bool EsActiva);
+    private record CategoriaItemRaw(int Id, string Nombre, string? Descripcion, int TotalProductos, bool EsActiva);
+    private record CajaItemRaw(int Id, int SucursalId, string NombreSucursal, string Numero, string Nombre, bool EsActiva);
+    
+    private record CuentaCobrarPagedResultRaw(List<CuentaCobrarItemRaw>? Items, int Total, int Page, int PageSize);
+    private record CuentaCobrarItemRaw(int Id, int VentaId, int ClienteId, decimal MontoTotal, 
+        decimal SaldoPendiente, DateTime FechaVencimiento, string Estado);
 }
