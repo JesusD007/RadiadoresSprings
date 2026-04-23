@@ -43,6 +43,6 @@ public class OrdenCambioEstadoHandler : IHandleMessages<OrdenCambioEstadoEvent>
                 message.EstadoAnterior,
                 message.Nota,
                 Timestamp = message.Timestamp
-            });
+            }, context.CancellationToken);
     }
 }

@@ -40,13 +40,13 @@ public class InventarioActualizadoHandler : IHandleMessages<InventarioActualizad
         using var scope = _scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<IntegrationDbContext>();
 
-        var producto = await db.ProductosMirror.FindAsync(message.ProductoId);
+        var producto = await db.ProductosMirror.FindAsync(new object[] { message.ProductoId }, context.CancellationToken);
 
         if (producto is not null)
         {
             producto.Stock = message.StockNuevo;
             producto.UltimaSync = DateTime.UtcNow;
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(context.CancellationToken);
 
             _logger.LogDebug("[Inventario] Mirror actualizado: ProductoId={Id}, StockNuevo={Stock}",
                 message.ProductoId, message.StockNuevo);

@@ -4,6 +4,7 @@ using IntegrationApp.Services;
 using Microsoft.EntityFrameworkCore;
 using System.Net.Http.Headers;
 using System.Text.Json;
+using IntegrationApp.Helpers;
 
 namespace IntegrationApp.BackgroundServices;
 
@@ -134,7 +135,7 @@ public class MirrorSyncService : BackgroundService
                 }
 
                 var content = await response.Content.ReadAsStringAsync(ct);
-                var result = JsonSerializer.Deserialize<ProductoPagedResultRaw>(content, _json);
+                var result = ProxyHelper.Unwrap<ProductoPagedResultRaw>(content, _json);
                 if (result?.Items == null || result.Items.Count == 0) break;
 
                 foreach (var item in result.Items)
@@ -179,7 +180,7 @@ public class MirrorSyncService : BackgroundService
             }
 
             var content = await response.Content.ReadAsStringAsync(ct);
-            var usuarios = JsonSerializer.Deserialize<List<UsuarioMirrorRaw>>(content, _json);
+            var usuarios = ProxyHelper.Unwrap<List<UsuarioMirrorRaw>>(content, _json);
             if (usuarios is null || usuarios.Count == 0)
             {
                 _logger.LogInformation("[MirrorSync] UsuarioMirror: sin registros del Core");
@@ -264,7 +265,7 @@ public class MirrorSyncService : BackgroundService
                 }
 
                 var content = await response.Content.ReadAsStringAsync(ct);
-                var result = JsonSerializer.Deserialize<ClientePagedResultRaw>(content, _json);
+                var result = ProxyHelper.Unwrap<ClientePagedResultRaw>(content, _json);
                 if (result?.Items == null || result.Items.Count == 0) break;
 
                 foreach (var item in result.Items)

@@ -88,7 +88,7 @@ public class SyncOfflineSaga : Saga<SyncOfflineSagaData>,
 
         // ── BUG #4 CORREGIDO: verificar Y escribir IdempotencyLog ─────────────
         var yaExiste = await db.IdempotencyLogs
-            .AnyAsync(x => x.IdTransaccionLocal == msg.IdTransaccionLocal);
+            .AnyAsync(x => x.IdTransaccionLocal == msg.IdTransaccionLocal, ctx.CancellationToken);
 
         if (yaExiste)
         {
@@ -120,7 +120,7 @@ public class SyncOfflineSaga : Saga<SyncOfflineSagaData>,
             Estado = "Pendiente"
         });
 
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(ctx.CancellationToken);
 
         await IntentarSincronizar(ctx);
     }
@@ -145,7 +145,7 @@ public class SyncOfflineSaga : Saga<SyncOfflineSagaData>,
         try
         {
             // ── BUG #6/#7 CORREGIDO: obtener JWT antes de llamar al Core ─────
-            var token = await _coreTokenService.GetTokenAsync();
+            var token = await _coreTokenService.GetTokenAsync(ctx.CancellationToken);
 
             // Reconstruir el payload de la venta desde los datos del saga.
             // LineasJson fue serializado desde LineaVentaItem (SharedContracts),
@@ -170,7 +170,8 @@ public class SyncOfflineSaga : Saga<SyncOfflineSagaData>,
                 "/api/v1/ventas",
                 request,
                 bearerToken: token,
-                idempotencyKey: Data.IdTransaccionLocal.ToString());
+                idempotencyKey: Data.IdTransaccionLocal.ToString(),
+                ct: ctx.CancellationToken);
 
             // ── BUG #5 CORREGIDO: actualizar estado en BD ────────────────────
             await ActualizarVentaPendienteAsync(db, Data.Intentos, exito: response.IsSuccessStatusCode);
@@ -260,13 +261,13 @@ public class SyncOfflineSaga : Saga<SyncOfflineSagaData>,
         {
             // Actualizar con los datos reales de la factura del Core
             var log = await db.IdempotencyLogs
-                .FirstOrDefaultAsync(x => x.IdTransaccionLocal == message.IdTransaccionLocal);
+                .FirstOrDefaultAsync(x => x.IdTransaccionLocal == message.IdTransaccionLocal, context.CancellationToken);
 
             if (log is not null)
             {
                 log.Estado = "Aplicada";
                 log.FechaConfirmacion = message.Timestamp;
-                await db.SaveChangesAsync();
+                await db.SaveChangesAsync(context.CancellationToken);
             }
         }
 
