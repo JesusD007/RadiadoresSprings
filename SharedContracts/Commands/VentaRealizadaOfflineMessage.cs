@@ -20,9 +20,13 @@ public record VentaRealizadaOfflineMessage : ICommand
     public int IdCajero { get; init; }
     public int IdSucursal { get; init; }
     public int ClienteId { get; init; }
+    public int CajaId { get; init; }
+    public int SesionCajaId { get; init; }
     public string MetodoPago { get; init; } = string.Empty;
     public decimal MontoTotal { get; init; }
     public decimal MontoRecibido { get; init; }
+    public decimal Descuento { get; init; }
+    public string? Observaciones { get; init; }
     public IReadOnlyList<LineaVentaItem> Lineas { get; init; } = [];
     public DateTimeOffset FechaLocal { get; init; }
 }

@@ -76,10 +76,14 @@ public class SyncOfflineSaga : Saga<SyncOfflineSagaData>,
         Data.IdTransaccionLocal = msg.IdTransaccionLocal;
         Data.SucursalId = msg.IdSucursal;
         Data.CajeroId = msg.IdCajero;
+        Data.CajaId = msg.CajaId;
+        Data.SesionCajaId = msg.SesionCajaId;
         Data.ClienteId = msg.ClienteId;
         Data.MetodoPago = msg.MetodoPago;
         Data.MontoTotal = msg.MontoTotal;
         Data.MontoRecibido = msg.MontoRecibido;
+        Data.Descuento = msg.Descuento;
+        Data.Observaciones = msg.Observaciones;
         Data.FechaLocal = msg.FechaLocal;
         Data.LineasJson = JsonSerializer.Serialize(msg.Lineas);
 
@@ -111,10 +115,14 @@ public class SyncOfflineSaga : Saga<SyncOfflineSagaData>,
             IdTransaccionLocal = msg.IdTransaccionLocal,
             CajeroId = msg.IdCajero,
             SucursalId = msg.IdSucursal,
+            CajaId = msg.CajaId,
+            SesionCajaId = msg.SesionCajaId,
             ClienteId = msg.ClienteId,
             MetodoPago = msg.MetodoPago,
             MontoTotal = msg.MontoTotal,
             MontoRecibido = msg.MontoRecibido,
+            Descuento = msg.Descuento,
+            Observaciones = msg.Observaciones,
             LineasJson = Data.LineasJson,
             FechaLocal = msg.FechaLocal,
             Estado = "Pendiente"
@@ -156,8 +164,12 @@ public class SyncOfflineSaga : Saga<SyncOfflineSagaData>,
                 clienteId    = Data.ClienteId,
                 cajeroId     = Data.CajeroId,
                 sucursalId   = Data.SucursalId,
+                cajaId       = Data.CajaId,
+                sesionCajaId = Data.SesionCajaId,
                 metodoPago   = Data.MetodoPago,
                 montoRecibido = Data.MontoRecibido,
+                descuento    = Data.Descuento,
+                observaciones = Data.Observaciones,
                 lineas       = lineas.Select(l => new
                 {
                     productoId     = l.ProductoId,

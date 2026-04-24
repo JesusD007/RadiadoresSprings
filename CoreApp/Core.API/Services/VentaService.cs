@@ -224,16 +224,18 @@ public class VentaService(
         var venta = new Venta
         {
             NumeroFactura = numero,
-            SucursalId = 1,
-            CajaId = 1,
-            SesionCajaId = 1,
+            SucursalId = tx.SucursalId > 0 ? tx.SucursalId : 1,
+            CajaId = tx.CajaId > 0 ? tx.CajaId : 1,
+            SesionCajaId = tx.SesionCajaId > 0 ? tx.SesionCajaId : 1,
             ClienteId = tx.ClienteId,
-            UsuarioId = 1,
+            UsuarioId = int.TryParse(tx.CajeroId, out var uId) ? uId : 1,
             Subtotal = subtotal,
             IVA = iva,
-            Total = subtotal + iva,
+            Total = subtotal + iva - tx.Descuento,
+            Descuento = tx.Descuento,
             MetodoPago = metodo,
             EsOffline = true,
+            Observaciones = tx.Observaciones,
             IdTransaccionLocal = tx.IdTransaccionLocal,
             Fecha = tx.FechaOffline
         };

@@ -11,6 +11,10 @@ public class VentaOfflinePendiente
     public int CajeroId { get; set; }
     public int SucursalId { get; set; }
     public int ClienteId { get; set; }
+    public int CajaId { get; set; }
+    public int SesionCajaId { get; set; }
+    public decimal Descuento { get; set; }
+    public string? Observaciones { get; set; }
     public string MetodoPago { get; set; } = string.Empty;
     public decimal MontoTotal { get; set; }
     public decimal MontoRecibido { get; set; }

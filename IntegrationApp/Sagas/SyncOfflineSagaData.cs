@@ -12,6 +12,10 @@ public class SyncOfflineSagaData : ContainSagaData
     public string MetodoPago { get; set; } = string.Empty;
     public int ClienteId { get; set; }
     public int CajeroId { get; set; }
+    public int CajaId { get; set; }
+    public int SesionCajaId { get; set; }
+    public decimal Descuento { get; set; }
+    public string? Observaciones { get; set; }
     public decimal MontoRecibido { get; set; }
     public DateTimeOffset FechaLocal { get; set; }
 }

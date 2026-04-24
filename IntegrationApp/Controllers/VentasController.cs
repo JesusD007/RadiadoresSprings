@@ -102,10 +102,14 @@ public class VentasController : ControllerBase
             IdTransaccionLocal = idGuid,
             CajeroId = request.CajeroId,
             SucursalId = request.SucursalId,
+            CajaId = request.CajaId,
+            SesionCajaId = request.SesionCajaId,
             ClienteId = request.ClienteId,
             MetodoPago = request.MetodoPago,
             MontoTotal = request.Lineas.Sum(l => l.Cantidad * l.PrecioUnitario - (l.Descuento ?? 0)),
             MontoRecibido = request.MontoRecibido,
+            Descuento = request.Descuento,
+            Observaciones = request.Observaciones,
             LineasJson = JsonSerializer.Serialize(request.Lineas),
             FechaLocal = DateTimeOffset.UtcNow,
             Estado = "Pendiente"
@@ -120,10 +124,14 @@ public class VentasController : ControllerBase
             IdTransaccionLocal = idGuid,
             IdCajero  = request.CajeroId,
             IdSucursal = request.SucursalId,
+            CajaId = request.CajaId,
+            SesionCajaId = request.SesionCajaId,
             ClienteId = request.ClienteId,
             MetodoPago = request.MetodoPago,
             MontoTotal = ventaOffline.MontoTotal,
             MontoRecibido = request.MontoRecibido,
+            Descuento = request.Descuento,
+            Observaciones = request.Observaciones,
             // Mapear LineaVentaDto → LineaVentaItem (SharedContracts no conoce Descuento)
             Lineas = request.Lineas
                 .Select(l => new LineaVentaItem
