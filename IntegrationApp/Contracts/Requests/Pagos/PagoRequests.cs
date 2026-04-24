@@ -7,3 +7,7 @@ public record SimularPagoRequest
     public string MetodoPago { get; init; } = string.Empty;  // "Tarjeta" | "PayPal"
     public string? TokenPago { get; init; }
 }
+
+public record RegistrarPagoRequest(
+    int ClienteId, int? CuentaCobrarId, decimal Monto,
+    string MetodoPago, string? Referencia, string? Notas);

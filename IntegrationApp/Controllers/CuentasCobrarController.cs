@@ -11,7 +11,7 @@ using System.Text.Json;
 namespace IntegrationApp.Controllers;
 
 [ApiController]
-[Route("api/v1/cuentascobrar")]
+[Route("api/v1/cuentas-cobrar")]
 [Authorize]
 public class CuentasCobrarController : ControllerBase
 {
@@ -50,8 +50,8 @@ public class CuentasCobrarController : ControllerBase
                 .FirstOrDefaultAsync(c => c.LocalId == clienteId, ct);
 
             string endpoint = mirror?.CoreId is int coreId
-                ? $"/api/v1/cuentascobrar/{coreId}"
-                : $"/api/v1/cuentascobrar/{clienteId}";
+                ? $"/api/v1/cuentas-cobrar/{coreId}"
+                : $"/api/v1/cuentas-cobrar/{clienteId}";
 
             var response = await _core.GetAsync(endpoint, bearerToken: Token, ct: ct);
             var content = await response.Content.ReadAsStringAsync(ct);
@@ -67,52 +67,5 @@ public class CuentasCobrarController : ControllerBase
             "Cuentas por cobrar no disponibles en modo offline";
 
         return Ok(Array.Empty<CuentaPorCobrarDto>());
-    }
-
-    /// <summary>
-    /// Registrar abono a cuenta por cobrar.
-    /// ONLINE:  proxy al Core.
-    /// OFFLINE: encola en OperacionPendiente.
-    /// </summary>
-    [HttpPost("{clienteId:int}/abono")]
-    public async Task<IActionResult> RegistrarAbono(
-        int clienteId,
-        [FromBody] RegistrarAbonoRequest request,
-        CancellationToken ct)
-    {
-        if (_cbState.CoreAvailable)
-        {
-            var response = await _core.PostAsync(
-                $"/api/v1/cuentascobrar/{clienteId}/abono", request, bearerToken: Token, ct: ct);
-            var content = await response.Content.ReadAsStringAsync(ct);
-
-            return response.IsSuccessStatusCode
-                ? Ok(JsonSerializer.Deserialize<object>(content, _json))
-                : StatusCode((int)response.StatusCode, JsonSerializer.Deserialize<object>(content, _json));
-        }
-
-        // Offline: encolar abono para sincronizar cuando Core vuelva
-        var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "unknown";
-
-        _db.OperacionesPendientes.Add(new IntegrationApp.Domain.Entities.OperacionPendiente
-        {
-            TipoEntidad     = "CuentaCobrar",
-            TipoOperacion   = "Abono",
-            EndpointCore    = $"/api/v1/cuentascobrar/{clienteId}/abono",
-            MetodoHttp      = "POST",
-            PayloadJson     = System.Text.Json.JsonSerializer.Serialize(request),
-            IdLocalTemporal = clienteId.ToString(),
-            UsuarioId       = userId,
-            FechaCreacion   = DateTimeOffset.UtcNow
-        });
-
-        await _db.SaveChangesAsync(ct);
-
-        return Accepted(new
-        {
-            offline = true,
-            message = "Abono registrado localmente. Se aplicará cuando el sistema central esté disponible.",
-            monto   = request.Monto
-        });
     }
 }

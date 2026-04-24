@@ -89,4 +89,51 @@ public class PagosController : ControllerBase
             Mensaje       = "Pago registrado localmente. Se procesará cuando el sistema central esté disponible."
         });
     }
+
+    /// <summary>
+    /// Registrar pago (incluyendo abonos a cuentas por cobrar).
+    /// ONLINE: proxy al Core.
+    /// OFFLINE: encola en OperacionPendiente.
+    /// </summary>
+    [HttpPost]
+    public async Task<IActionResult> Registrar([FromBody] RegistrarPagoRequest request, CancellationToken ct)
+    {
+        if (_cbState.CoreAvailable)
+        {
+            var response = await _core.PostAsync("/api/v1/pagos", request, bearerToken: Token, ct: ct);
+            var content = await response.Content.ReadAsStringAsync(ct);
+
+            return response.IsSuccessStatusCode
+                ? Ok(JsonSerializer.Deserialize<object>(content, _json))
+                : StatusCode((int)response.StatusCode, JsonSerializer.Deserialize<object>(content, _json));
+        }
+
+        // ── MODO OFFLINE ───────────────────────────────────────────────────────
+        _logger.LogWarning("[Pagos] Registro de pago offline — clienteId={Cliente}, monto={Monto}",
+            request.ClienteId, request.Monto);
+
+        var localId = Guid.NewGuid();
+
+        _db.OperacionesPendientes.Add(new OperacionPendiente
+        {
+            TipoEntidad     = "Pago",
+            TipoOperacion   = "Registrar",
+            EndpointCore    = "/api/v1/pagos",
+            MetodoHttp      = "POST",
+            PayloadJson     = JsonSerializer.Serialize(request),
+            IdLocalTemporal = localId.ToString(),
+            UsuarioId       = UserId,
+            FechaCreacion   = DateTimeOffset.UtcNow
+        });
+
+        await _db.SaveChangesAsync(ct);
+        _logger.LogInformation("[Pagos] Registro de pago offline encolado — IdLocal={Id}", localId);
+
+        return Accepted(new
+        {
+            offline = true,
+            mensaje = "Pago registrado localmente. Se aplicará cuando el sistema central esté disponible.",
+            monto   = request.Monto
+        });
+    }
 }
