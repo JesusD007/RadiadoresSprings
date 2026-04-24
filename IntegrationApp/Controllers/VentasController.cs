@@ -156,4 +156,16 @@ public class VentasController : ControllerBase
             DesdeOffline = true
         });
     }
+
+    /// <summary>
+    /// [DEBUG/MONITOR] Ver las ventas que están encoladas o que fallaron en offline.
+    /// </summary>
+    [HttpGet("offline/pendientes")]
+    public async Task<ActionResult> GetVentasOfflinePendientes(CancellationToken ct)
+    {
+        var pendientes = await _db.VentasOfflinePendientes
+            .OrderByDescending(v => v.FechaLocal)
+            .ToListAsync(ct);
+        return Ok(pendientes);
+    }
 }
