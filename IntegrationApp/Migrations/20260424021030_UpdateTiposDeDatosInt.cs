@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -11,6 +11,15 @@ namespace IntegrationApp.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.Sql(@"
+                ALTER TABLE ""VentaOfflinePendiente"" ALTER COLUMN ""SucursalId"" TYPE integer USING 0;
+                ALTER TABLE ""VentaOfflinePendiente"" ALTER COLUMN ""ClienteId"" TYPE integer USING 0;
+                ALTER TABLE ""VentaOfflinePendiente"" ALTER COLUMN ""CajeroId"" TYPE integer USING 0;
+                ALTER TABLE ""SesionCajaMirror"" ALTER COLUMN ""IdLocal"" TYPE integer USING 0;
+                ALTER TABLE ""IdempotencyLog"" ALTER COLUMN ""FacturaIdCore"" TYPE integer USING NULL;
+                ALTER TABLE ""ClienteMirror"" ALTER COLUMN ""LocalId"" TYPE integer USING 0;
+            ");
+
             migrationBuilder.AlterColumn<int>(
                 name: "SucursalId",
                 table: "VentaOfflinePendiente",
