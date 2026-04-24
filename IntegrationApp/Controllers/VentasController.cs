@@ -118,8 +118,8 @@ public class VentasController : ControllerBase
         _db.VentasOfflinePendientes.Add(ventaOffline);
         await _db.SaveChangesAsync(ct);
 
-        // Publicar mensaje NServiceBus para la Saga (SharedContracts.Commands)
-        await _bus.Send(new VentaRealizadaOfflineMessage
+        // Publicar mensaje NServiceBus para la Saga local (usamos SendLocal para no requerir configuración de ruteo)
+        await _bus.SendLocal(new VentaRealizadaOfflineMessage
         {
             IdTransaccionLocal = idGuid,
             IdCajero  = request.CajeroId,
