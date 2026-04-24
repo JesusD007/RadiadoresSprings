@@ -47,6 +47,8 @@ public class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbContext(
             e.Property(x => x.Rol).HasConversion<string>().HasMaxLength(30);
             e.HasOne(x => x.Sucursal).WithMany(s => s.Usuarios)
              .HasForeignKey(x => x.SucursalId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.Cliente).WithMany()
+             .HasForeignKey(x => x.ClienteId).IsRequired(false).OnDelete(DeleteBehavior.SetNull);
         });
 
         // ── Categoria ─────────────────────────────────────────────────────────

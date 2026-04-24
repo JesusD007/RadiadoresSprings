@@ -9,10 +9,11 @@ public record AuthResponse(string Token, string RefreshToken, DateTime Expiry, U
 
 // ── Usuarios ──────────────────────────────────────────────────────────────────
 public record UsuarioResponse(int Id, string Username, string Nombre, string Apellido,
-    string Email, string Rol, int SucursalId, string NombreSucursal, bool EsActivo);
+    string Email, string Rol, int SucursalId, string NombreSucursal, bool EsActivo,
+    int? ClienteId);
 
 public record UsuarioMirrorResponse(int Id, string Username, string PasswordHash, string Rol,
-    string Nombre, string? Apellido, string? Email, bool EsActivo);
+    string Nombre, string? Apellido, string? Email, bool EsActivo, int? ClienteId);
 
 // ── Productos ─────────────────────────────────────────────────────────────────
 public record ProductoResponse(

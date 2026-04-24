@@ -18,7 +18,14 @@ public class Usuario
     public string? RefreshToken { get; set; }
     public DateTime? RefreshTokenExpiry { get; set; }
 
+    /// <summary>
+    /// ID del cliente asociado. Solo aplica para usuarios con rol Cliente.
+    /// Se asigna al registrar un cliente web (RegistrarClienteWebAsync).
+    /// </summary>
+    public int? ClienteId { get; set; }
+
     // Navegación
     public Sucursal Sucursal { get; set; } = null!;
+    public Cliente? Cliente { get; set; }
     public ICollection<SesionCaja> SesionesCaja { get; set; } = [];
 }

@@ -209,6 +209,7 @@ public class MirrorSyncService : BackgroundService
                         Apellido     = u.Apellido ?? string.Empty,
                         Email        = u.Email,
                         EsActivo     = u.EsActivo,
+                        ClienteId    = u.ClienteId,
                         UltimaSync   = DateTime.UtcNow
                     });
                 }
@@ -221,6 +222,7 @@ public class MirrorSyncService : BackgroundService
                     existing.Apellido     = u.Apellido ?? string.Empty;
                     existing.Email        = u.Email;
                     existing.EsActivo     = u.EsActivo;
+                    existing.ClienteId    = u.ClienteId;
                     existing.UltimaSync   = DateTime.UtcNow;
                 }
             }
@@ -545,7 +547,7 @@ public class MirrorSyncService : BackgroundService
     private record ProductoItemRaw(int Id, string Codigo, string Nombre, decimal Precio, int Stock, string Categoria, bool EsActivo);
 
     private record UsuarioMirrorRaw(int Id, string Username, string PasswordHash, string Rol,
-        string Nombre, string? Apellido, string? Email, bool EsActivo);
+        string Nombre, string? Apellido, string? Email, bool EsActivo, int? ClienteId);
 
     private record ClientePagedResultRaw(List<ClienteItemRaw>? Items, int Total, int Page, int PageSize);
     private record ClienteItemRaw(int Id, string Nombre, string? Apellido, string? Email,

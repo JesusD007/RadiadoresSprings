@@ -359,7 +359,10 @@ static async Task MostrarUsuariosAsync(IAuthService authSvc, ConsoleSession sess
 
     var opciones = new List<string> { "📋 Listar usuarios" };
     if (PermisoConsola.PuedeGestionarUsuarios(session.Rol))
+    {
         opciones.Add("➕ Crear usuario");
+        opciones.Add("✏️  Editar usuario");
+    }
     opciones.Add("🔑 Cambiar mi contraseña");
     opciones.Add("← Volver");
 
@@ -397,7 +400,7 @@ static async Task MostrarUsuariosAsync(IAuthService authSvc, ConsoleSession sess
         var email     = AnsiConsole.Ask<string>("Email:");
         var rol       = AnsiConsole.Prompt(
             new SelectionPrompt<string>().Title("Rol:")
-                .AddChoices("Administrador", "Cajero", "Vendedor", "Almacenista"));
+                .AddChoices("Administrador", "Cajero", "Vendedor", "Almacenista", "Cliente"));
 
         try
         {
@@ -411,6 +414,82 @@ static async Task MostrarUsuariosAsync(IAuthService authSvc, ConsoleSession sess
         catch (Exception ex)
         {
             AnsiConsole.MarkupLine($"[red]❌ {Markup.Escape(ex.Message)}[/]");
+        }
+    }
+    else if (opcion == "✏️  Editar usuario")
+    {
+        // Mostrar lista completa para facilitar la selección por ID
+        var todos = (await authSvc.GetUsuariosAsync()).ToList();
+        var tablaEditar = new Table().Border(TableBorder.Rounded)
+            .AddColumn("[bold]ID[/]").AddColumn("[bold]Username[/]")
+            .AddColumn("[bold]Nombre[/]").AddColumn("[bold]Rol[/]")
+            .AddColumn("[bold]Sucursal[/]").AddColumn("[bold]Activo[/]");
+
+        foreach (var u in todos)
+            tablaEditar.AddRow(
+                u.Id.ToString(),
+                Markup.Escape(u.Username),
+                Markup.Escape($"{u.Nombre} {u.Apellido}"),
+                $"[{RolColor(u.Rol)} bold]{Markup.Escape(u.Rol)}[/]",
+                Markup.Escape(u.NombreSucursal),
+                u.EsActivo ? "[green]●[/]" : "[red]●[/]");
+
+        AnsiConsole.Write(tablaEditar);
+        AnsiConsole.WriteLine();
+
+        var id = AnsiConsole.Ask<int>("ID del usuario a editar:");
+        var destino = todos.FirstOrDefault(u => u.Id == id);
+
+        if (destino is null)
+        {
+            AnsiConsole.MarkupLine($"[red]❌ No se encontró un usuario con ID {id}.[/]");
+        }
+        else
+        {
+            AnsiConsole.MarkupLine(
+                $"\n[bold]Editando:[/] #{destino.Id} — [cyan]{Markup.Escape(destino.Username)}[/]  " +
+                $"[grey](deja en blanco para mantener el valor actual)[/]\n");
+
+            // Campos con valor actual visible — el admin pulsa Enter para conservarlo
+            var nombre = AnsiConsole.Prompt(
+                new TextPrompt<string>($"Nombre [grey]({Markup.Escape(destino.Nombre)})[/]:")
+                    .AllowEmpty());
+            if (string.IsNullOrWhiteSpace(nombre)) nombre = destino.Nombre;
+
+            var apellido = AnsiConsole.Prompt(
+                new TextPrompt<string>($"Apellido [grey]({Markup.Escape(destino.Apellido)})[/]:")
+                    .AllowEmpty());
+            if (string.IsNullOrWhiteSpace(apellido)) apellido = destino.Apellido;
+
+            var email = AnsiConsole.Prompt(
+                new TextPrompt<string>($"Email [grey]({Markup.Escape(destino.Email)})[/]:")
+                    .AllowEmpty());
+            if (string.IsNullOrWhiteSpace(email)) email = destino.Email;
+
+            var rol = AnsiConsole.Prompt(
+                new SelectionPrompt<string>()
+                    .Title($"Rol [grey](actual: {Markup.Escape(destino.Rol)})[/]:")
+                    .AddChoices("Administrador", "Cajero", "Vendedor", "Almacenista", "Cliente"));
+
+            var esActivo = AnsiConsole.Confirm(
+                $"¿Usuario activo? [grey](actual: {(destino.EsActivo ? "Sí" : "No")})[/]",
+                destino.EsActivo);
+
+            try
+            {
+                var req = new Core.API.DTOs.Requests.ActualizarUsuarioRequest(
+                    nombre, apellido, email, rol, destino.SucursalId, esActivo);
+                var actualizado = await authSvc.ActualizarUsuarioAsync(id, req);
+                AnsiConsole.MarkupLine(
+                    $"[green]✅ Usuario actualizado: #{actualizado!.Id} — " +
+                    $"{Markup.Escape(actualizado.Username)} " +
+                    $"[[{Markup.Escape(actualizado.Rol)}]] " +
+                    $"{(actualizado.EsActivo ? "[green]Activo[/]" : "[red]Inactivo[/]")}[/]");
+            }
+            catch (Exception ex)
+            {
+                AnsiConsole.MarkupLine($"[red]❌ {Markup.Escape(ex.Message)}[/]");
+            }
         }
     }
     else if (opcion == "🔑 Cambiar mi contraseña")
@@ -449,6 +528,7 @@ static string RolColor(string rol) => rol switch
     "Cajero"        => "blue",
     "Vendedor"      => "green",
     "Almacenista"   => "yellow3",
+    "Cliente"       => "aqua",
     _               => "grey"
 };
 

@@ -87,6 +87,35 @@ public class AuthService(CoreDbContext db, IConfiguration config, ILogger<AuthSe
         return MapUsuario(usuario);
     }
 
+    public async Task<UsuarioResponse?> ActualizarUsuarioAsync(int id, ActualizarUsuarioRequest req)
+    {
+        var usuario = await db.Usuarios.Include(u => u.Sucursal)
+            .FirstOrDefaultAsync(u => u.Id == id);
+
+        if (usuario is null) return null;
+
+        if (!Enum.TryParse<RolUsuario>(req.Rol, true, out var rol))
+            throw new InvalidOperationException($"Rol '{req.Rol}' no válido.");
+
+        // Validar que el nuevo email no esté en uso por otro usuario
+        if (!string.Equals(usuario.Email, req.Email, StringComparison.OrdinalIgnoreCase)
+            && await db.Usuarios.AnyAsync(u => u.Email == req.Email && u.Id != id))
+            throw new InvalidOperationException($"El email '{req.Email}' ya está en uso por otro usuario.");
+
+        usuario.Nombre      = req.Nombre;
+        usuario.Apellido    = req.Apellido;
+        usuario.Email       = req.Email;
+        usuario.Rol         = rol;
+        usuario.SucursalId  = req.SucursalId;
+        usuario.EsActivo    = req.EsActivo;
+
+        await db.SaveChangesAsync();
+        await db.Entry(usuario).Reference(u => u.Sucursal).LoadAsync();
+
+        logger.LogInformation("✏️ Usuario {Id} actualizado por admin.", id);
+        return MapUsuario(usuario);
+    }
+
     public async Task<IEnumerable<UsuarioResponse>> GetUsuariosAsync()
     {
         return await db.Usuarios.Include(u => u.Sucursal)
@@ -131,6 +160,11 @@ public class AuthService(CoreDbContext db, IConfiguration config, ILogger<AuthSe
                 db.Clientes.Add(cliente);
 
                 await db.SaveChangesAsync();
+
+                // Vincular el usuario con el cliente recién creado
+                usuario.ClienteId = cliente.Id;
+                await db.SaveChangesAsync();
+
                 await tx.CommitAsync();
 
                 await db.Entry(usuario).Reference(u => u.Sucursal).LoadAsync();
@@ -149,7 +183,7 @@ public class AuthService(CoreDbContext db, IConfiguration config, ILogger<AuthSe
         var usuarios = await db.Usuarios.ToListAsync();
         return usuarios.Select(u => new UsuarioMirrorResponse(
             u.Id, u.Username, u.PasswordHash, u.Rol.ToString(),
-            u.Nombre, u.Apellido, u.Email, u.EsActivo));
+            u.Nombre, u.Apellido, u.Email, u.EsActivo, u.ClienteId));
     }
 
     private (string Token, DateTime Expiry) GenerarToken(Usuario usuario)
@@ -188,5 +222,6 @@ public class AuthService(CoreDbContext db, IConfiguration config, ILogger<AuthSe
     private static UsuarioResponse MapUsuario(Usuario u) => new(
         u.Id, u.Username, u.Nombre, u.Apellido, u.Email,
         u.Rol.ToString(), u.SucursalId,
-        u.Sucursal?.Nombre ?? "-", u.EsActivo);
+        u.Sucursal?.Nombre ?? "-", u.EsActivo,
+        u.ClienteId);
 }

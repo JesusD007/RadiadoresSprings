@@ -235,7 +235,7 @@ public class OrdenesController(IOrdenService ordenService) : ControllerBase
         {
             var o = await ordenService.CrearAsync(req);
             return CreatedAtAction(nameof(GetById), new { id = o.Id },
-                new ApiResponse<OrdenResponse>(true, "Orden creada.", o));
+                new ApiResponse<OrdenResponse>(true, $"Orden creada. Número de orden: {o.NumeroOrden}", o));
         }
         catch (InvalidOperationException ex)
         {

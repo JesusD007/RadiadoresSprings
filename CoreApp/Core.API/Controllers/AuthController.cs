@@ -109,4 +109,27 @@ public class AuthController(IAuthService authService) : ControllerBase
             return Conflict(new ApiResponse<UsuarioResponse>(false, ex.Message, null));
         }
     }
+
+    /// <summary>
+    /// Actualizar información de un usuario existente.
+    /// No incluye cambio de contraseña (usa /cambiar-password). Solo Administrador.
+    /// </summary>
+    [HttpPut("usuarios/{id:int}")]
+    [Authorize(Policy = ApiPolicies.AdminSistema)]
+    public async Task<ActionResult<ApiResponse<UsuarioResponse>>> ActualizarUsuario(
+        int id, [FromBody] ActualizarUsuarioRequest req)
+    {
+        try
+        {
+            var usuario = await authService.ActualizarUsuarioAsync(id, req);
+            if (usuario is null)
+                return NotFound(new ApiResponse<UsuarioResponse>(false, $"Usuario {id} no encontrado.", null));
+
+            return Ok(new ApiResponse<UsuarioResponse>(true, "Usuario actualizado.", usuario));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new ApiResponse<UsuarioResponse>(false, ex.Message, null));
+        }
+    }
 }

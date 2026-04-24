@@ -64,6 +64,7 @@ public class AuthController : ControllerBase
             expiresAt = resultado.ExpiresAt,
             rol       = resultado.Rol,
             nombre    = resultado.NombreCompleto,
+            clienteId = resultado.ClienteId,
             offline   = true,
             message   = "Sesión iniciada en modo offline. Algunas funciones pueden estar limitadas."
         });

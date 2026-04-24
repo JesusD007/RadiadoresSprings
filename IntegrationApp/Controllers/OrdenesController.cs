@@ -38,7 +38,7 @@ public class OrdenesController : ControllerBase
     private string UserId => User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "unknown";
 
     // DTO interno para mapear exactamente la respuesta de /api/v1/ordenes del Core
-    private record CoreOrdenResponseDto(int Id, string Estado, decimal TotalOrden);
+    private record CoreOrdenResponseDto(int Id, string NumeroOrden, string Estado, decimal TotalOrden);
 
     // ── POST /api/v1/ordenes ──────────────────────────────────────────────────
 
@@ -63,10 +63,11 @@ public class OrdenesController : ControllerBase
                 var pollUrl = $"{Request.Scheme}://{Request.Host}/api/v1/ordenes/{ordenCore.Id}/estado";
                 return Accepted(new OrdenCreadaResponse
                 {
-                    OrdenId = ordenCore.Id,
-                    Estado  = ordenCore.Estado,
-                    Total   = ordenCore.TotalOrden,
-                    PollUrl = pollUrl
+                    OrdenId      = ordenCore.Id,
+                    NumeroOrden  = ordenCore.NumeroOrden,
+                    Estado       = ordenCore.Estado,
+                    Total        = ordenCore.TotalOrden,
+                    PollUrl      = pollUrl
                 });
             }
 
@@ -95,10 +96,11 @@ public class OrdenesController : ControllerBase
 
         return Accepted(new OrdenCreadaResponse
         {
-            OrdenId = -Random.Shared.Next(1, 1000000),
-            Estado  = "PendienteSync",
-            Total   = request.Lineas.Sum(l => l.Cantidad * 0m), // total desconocido offline
-            PollUrl = $"{Request.Scheme}://{Request.Host}/api/v1/ordenes/{idLocal}/estado"
+            OrdenId     = -1,
+            NumeroOrden = $"OFFLINE-{idLocal.ToString()[..8].ToUpper()}",
+            Estado      = "PendienteSync",
+            Total       = request.Lineas.Sum(l => l.Cantidad * 0m), // total desconocido offline
+            PollUrl     = $"{Request.Scheme}://{Request.Host}/api/v1/ordenes/{idLocal}/estado"
         });
     }
 

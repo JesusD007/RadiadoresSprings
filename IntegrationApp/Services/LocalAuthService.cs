@@ -27,7 +27,7 @@ public interface ILocalAuthService
     Task<LocalAuthResult?> LoginAsync(string username, string password);
 }
 
-public record LocalAuthResult(string Token, DateTimeOffset ExpiresAt, string Rol, string NombreCompleto);
+public record LocalAuthResult(string Token, DateTimeOffset ExpiresAt, string Rol, string NombreCompleto, int? ClienteId);
 
 public class LocalAuthService : ILocalAuthService
 {
@@ -105,6 +105,7 @@ public class LocalAuthService : ILocalAuthService
             Token: tokenString,
             ExpiresAt: expiresAt,
             Rol: usuario.Rol,
-            NombreCompleto: $"{usuario.Nombre} {usuario.Apellido}".Trim());
+            NombreCompleto: $"{usuario.Nombre} {usuario.Apellido}".Trim(),
+            ClienteId: usuario.ClienteId);
     }
 }

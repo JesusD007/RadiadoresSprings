@@ -65,10 +65,23 @@ try
         {
             var endpointConfig = new EndpointConfiguration("IntegrationApp");
 
-            var transport = endpointConfig.UseTransport<RabbitMQTransport>();
-            transport.UseConventionalRoutingTopology(QueueType.Quorum);
-            transport.ConnectionString(rabbitMqUrl);
+            // ── API moderna NServiceBus.RabbitMQ 9.x ─────────────────────────
+            // IMPORTANTE: Usar la misma API que Core.API para garantizar
+            // compatibilidad en el Conventional Routing Topology y que los
+            // bindings de suscripción se creen correctamente en RabbitMQ.
+            endpointConfig.UseTransport(
+                new RabbitMQTransport(
+                    RoutingTopology.Conventional(QueueType.Quorum),
+                    rabbitMqUrl));
 
+            // ── Convenciones de mensajes (igual que Core.API) ─────────────────
+            // Asegura que NServiceBus resuelva los tipos de SharedContracts
+            // correctamente al crear los exchanges en RabbitMQ.
+            var conventions = endpointConfig.Conventions();
+            conventions.DefiningCommandsAs(t => t.Namespace?.Contains("Commands") == true);
+            conventions.DefiningEventsAs(t => t.Namespace?.Contains("Events") == true);
+
+            // ── SQL Persistence (PostgreSQL vía Neon) ─────────────────────────
             var sqlPersistence = endpointConfig.UsePersistence<SqlPersistence>();
             sqlPersistence.SqlDialect<SqlDialect.PostgreSql>();
             var connStr = ctx.Configuration.GetConnectionString("IntegrationDb")!;
@@ -80,6 +93,9 @@ try
 
             endpointConfig.License(
                 "<aws:License Id=\"Trial\" Expiry=\"9999-01-01\" Edition=\"Developer\" xmlns:aws=\"http://particular.net/license\" />");
+
+            Log.Information("📬 NServiceBus configurado | Transport: RabbitMQ | Host: {Host}",
+                new Uri(rabbitMqUrl).Host);
 
             return endpointConfig;
         });

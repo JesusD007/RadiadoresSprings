@@ -9,6 +9,7 @@ public interface IAuthService
     Task<AuthResponse?> RefreshTokenAsync(string refreshToken);
     Task<bool> CambiarPasswordAsync(int usuarioId, string passwordActual, string passwordNuevo);
     Task<UsuarioResponse?> CrearUsuarioAsync(CrearUsuarioRequest req);
+    Task<UsuarioResponse?> ActualizarUsuarioAsync(int id, ActualizarUsuarioRequest req);
     Task<IEnumerable<UsuarioResponse>> GetUsuariosAsync();
     Task<UsuarioResponse> RegistrarClienteWebAsync(RegistroWebRequest request);
     Task<IEnumerable<UsuarioMirrorResponse>> GetUsuariosMirrorAsync();

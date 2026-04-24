@@ -11,6 +11,10 @@ public record CrearUsuarioRequest(
     string Username, string Password, string Nombre, string Apellido,
     string Email, string Rol, int SucursalId);
 
+public record ActualizarUsuarioRequest(
+    string Nombre, string Apellido, string Email,
+    string Rol, int SucursalId, bool EsActivo);
+
 // ── Productos ─────────────────────────────────────────────────────────────────
 public record CrearProductoRequest(
     string Codigo, string Nombre, string? Descripcion,
