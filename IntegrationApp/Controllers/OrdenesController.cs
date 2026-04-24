@@ -37,6 +37,9 @@ public class OrdenesController : ControllerBase
     private string Token  => Request.Headers.Authorization.ToString().Replace("Bearer ", "");
     private string UserId => User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "unknown";
 
+    // DTO interno para mapear exactamente la respuesta de /api/v1/ordenes del Core
+    private record CoreOrdenResponseDto(int Id, string Estado, decimal TotalOrden);
+
     // ── POST /api/v1/ordenes ──────────────────────────────────────────────────
 
     /// <summary>
@@ -56,13 +59,13 @@ public class OrdenesController : ControllerBase
 
             if (response.IsSuccessStatusCode)
             {
-                var orden = ProxyHelper.Unwrap<OrdenCreadaResponse>(content, _json)!;
-                var pollUrl = $"{Request.Scheme}://{Request.Host}/api/v1/ordenes/{orden.OrdenId}/estado";
+                var ordenCore = ProxyHelper.Unwrap<CoreOrdenResponseDto>(content, _json)!;
+                var pollUrl = $"{Request.Scheme}://{Request.Host}/api/v1/ordenes/{ordenCore.Id}/estado";
                 return Accepted(new OrdenCreadaResponse
                 {
-                    OrdenId = orden.OrdenId,
-                    Estado  = orden.Estado,
-                    Total   = orden.Total,
+                    OrdenId = ordenCore.Id,
+                    Estado  = ordenCore.Estado,
+                    Total   = ordenCore.TotalOrden,
                     PollUrl = pollUrl
                 });
             }
@@ -104,33 +107,88 @@ public class OrdenesController : ControllerBase
     /// <summary>
     /// Seguimiento de orden.
     /// ONLINE:  proxy al Core.
-    /// OFFLINE: retorna estado "PendienteSync" para órdenes encoladas localmente.
+    /// OFFLINE: retorna estado "PendienteSync" para órdenes encoladas localmente o "Sincronizada" si ya se envió.
     /// </summary>
-    [HttpGet("{id:guid}/estado")]
+    [HttpGet("{id}/estado")]
     [AllowAnonymous]
-    public async Task<ActionResult<EstadoOrdenDto>> GetEstado(Guid id, CancellationToken ct)
+    public async Task<ActionResult<EstadoOrdenDto>> GetEstado(string id, CancellationToken ct)
     {
-        if (_cbState.CoreAvailable)
+        // 1. Tratar como ID numérico (Orden en Core)
+        if (int.TryParse(id, out var coreId))
         {
-            var response = await _core.GetAsync($"/api/v1/ordenes/{id}/estado", bearerToken: Token, ct: ct);
-            var content = await response.Content.ReadAsStringAsync(ct);
+            if (_cbState.CoreAvailable)
+            {
+                var response = await _core.GetAsync($"/api/v1/ordenes/{coreId}", bearerToken: Token, ct: ct);
+                var content = await response.Content.ReadAsStringAsync(ct);
 
-            return response.IsSuccessStatusCode
-                ? Ok(ProxyHelper.Unwrap<EstadoOrdenDto>(content, _json))
-                : StatusCode((int)response.StatusCode, JsonSerializer.Deserialize<object>(content, _json));
+                if (response.IsSuccessStatusCode)
+                {
+                    var ordenCore = ProxyHelper.Unwrap<CoreOrdenResponseDto>(content, _json);
+                    if (ordenCore != null)
+                    {
+                        return Ok(new EstadoOrdenDto
+                        {
+                            OrdenId = ordenCore.Id,
+                            Estado  = ordenCore.Estado,
+                            Offline = false,
+                            Mensaje = "Consultado en tiempo real en el sistema central."
+                        });
+                    }
+                }
+                return StatusCode((int)response.StatusCode, JsonSerializer.Deserialize<object>(content, _json));
+            }
+            return StatusCode(503, new { error = "El sistema central no está disponible para consultar el estado actual." });
         }
 
-        // Offline: verificar si la orden está encolada localmente
+        // 2. Tratar como GUID local (Orden Offline en OperacionesPendientes)
         var encolada = await _db.OperacionesPendientes
-            .AnyAsync(op => op.IdLocalTemporal == id.ToString()
-                         && op.TipoEntidad == "Orden", ct);
+            .FirstOrDefaultAsync(op => op.IdLocalTemporal == id
+                                    && op.TipoEntidad == "Orden"
+                                    && op.TipoOperacion == "Crear", ct);
 
-        if (!encolada)
+        if (encolada == null)
             return NotFound(new { error = "Orden no encontrada", offline = true });
+
+        // Si ya se sincronizó, extraer el ID real que el Core le asignó
+        if (encolada.Estado == "Sincronizada" && !string.IsNullOrWhiteSpace(encolada.RespuestaCore))
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(encolada.RespuestaCore);
+                // La respuesta del Core es un ApiResponse<OrdenResponse> con el wrapper "data"
+                if (doc.RootElement.TryGetProperty("data", out var dataEl) && dataEl.TryGetProperty("id", out var idEl))
+                {
+                    var realCoreId = idEl.GetInt32();
+                    var estadoReal = dataEl.TryGetProperty("estado", out var estEl) ? estEl.GetString() : "Sincronizada";
+                    
+                    return Ok(new EstadoOrdenDto
+                    {
+                        OrdenId = realCoreId,
+                        Estado  = estadoReal ?? "Sincronizada",
+                        Mensaje = "La orden fue sincronizada con éxito. Utiliza el nuevo OrdenId numérico para futuras consultas.",
+                        Offline = false
+                    });
+                }
+            }
+            catch { /* Ignorar error de parseo y fallback genérico */ }
+
+            return Ok(new EstadoOrdenDto { OrdenId = -1, Estado = "Sincronizada", Offline = false });
+        }
+
+        if (encolada.Estado == "Rechazada")
+        {
+            return Ok(new EstadoOrdenDto
+            {
+                OrdenId = -1,
+                Estado  = "Rechazada",
+                Mensaje = encolada.MotivoRechazo,
+                Offline = true
+            });
+        }
 
         return Ok(new EstadoOrdenDto
         {
-            OrdenId  = -Random.Shared.Next(1, 1000000),
+            OrdenId  = -1,
             Estado   = "PendienteSync",
             Mensaje  = "Orden registrada localmente. Se procesará cuando el sistema central esté disponible.",
             Offline  = true

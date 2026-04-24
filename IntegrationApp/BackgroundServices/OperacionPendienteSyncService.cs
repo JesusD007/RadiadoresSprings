@@ -291,7 +291,8 @@ public class OperacionPendienteSyncService : BackgroundService
                 && int.TryParse(op.IdLocalTemporal, out var idLocal))
             {
                 using var doc = JsonDocument.Parse(respBody);
-                if (doc.RootElement.TryGetProperty("sesionCajaId", out var sesionIdEl)
+                if (doc.RootElement.TryGetProperty("data", out var dataEl)
+                    && dataEl.TryGetProperty("id", out var sesionIdEl)
                     && sesionIdEl.TryGetInt32(out var coreSesionId))
                 {
                     var sesion = await db.SesionesCajaMirror

@@ -52,14 +52,20 @@ public class CrearOrdenRequestValidator : AbstractValidator<CrearOrdenRequest>
     }
 }
 
-public class MovimientoCajaRequestValidator : AbstractValidator<MovimientoCajaRequest>
+public class AbrirSesionCajaRequestValidator : AbstractValidator<AbrirSesionCajaRequest>
 {
-    public MovimientoCajaRequestValidator()
+    public AbrirSesionCajaRequestValidator()
     {
-        RuleFor(x => x.SesionCajaId).NotEmpty();
-        RuleFor(x => x.Tipo).Must(t => t is "IN" or "OUT").WithMessage("Tipo debe ser IN o OUT");
-        RuleFor(x => x.Monto).GreaterThan(0);
-        RuleFor(x => x.Motivo).NotEmpty().MaximumLength(300);
-        RuleFor(x => x.FirmaDigital).NotEmpty();
+        RuleFor(x => x.CajaId).NotEmpty();
+        RuleFor(x => x.MontoApertura).GreaterThanOrEqualTo(0);
+    }
+}
+
+public class CerrarSesionCajaRequestValidator : AbstractValidator<CerrarSesionCajaRequest>
+{
+    public CerrarSesionCajaRequestValidator()
+    {
+        RuleFor(x => x.SesionId).NotEmpty();
+        RuleFor(x => x.MontoCierre).GreaterThanOrEqualTo(0);
     }
 }
