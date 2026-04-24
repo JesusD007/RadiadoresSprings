@@ -74,14 +74,14 @@ public class CajaController : ControllerBase
             });
         }
 
-        var idLocal = Guid.NewGuid();
+        var idLocal = -Random.Shared.Next(1, 1000000);
         int.TryParse(UserId, out int usuarioIdInt);
 
         var sesion = new SesionCajaMirror
         {
             IdLocal       = idLocal,
             CajaId        = 0,                        // placeholder — se actualizará al sincronizar
-            NombreCaja    = request.SucursalId,
+            NombreCaja    = request.SucursalId.ToString(),
             UsuarioId     = usuarioIdInt,
             NombreUsuario = UserName,
             MontoApertura = request.MontoInicial,
@@ -152,7 +152,7 @@ public class CajaController : ControllerBase
             });
         }
 
-        var movimientoId = Guid.NewGuid();
+        var movimientoId = -Random.Shared.Next(1, 1000000);
 
         _db.OperacionesPendientes.Add(new OperacionPendiente
         {

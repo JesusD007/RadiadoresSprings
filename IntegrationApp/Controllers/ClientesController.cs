@@ -46,8 +46,8 @@ public class ClientesController : ControllerBase
     /// ONLINE:  proxy al Core usando CoreId.
     /// OFFLINE: servido desde ClienteMirror.
     /// </summary>
-    [HttpGet("{id:guid}")]
-    public async Task<ActionResult<ClienteDto>> GetCliente(Guid id, CancellationToken ct)
+    [HttpGet("{id:int}")]
+    public async Task<ActionResult<ClienteDto>> GetCliente(int id, CancellationToken ct)
     {
         // ── MODO ONLINE ────────────────────────────────────────────────────────
         if (_cbState.CoreAvailable)
@@ -149,7 +149,7 @@ public class ClientesController : ControllerBase
         // ── MODO OFFLINE ───────────────────────────────────────────────────────
         _logger.LogWarning("[Clientes] Creando cliente offline — usuario {User}", UserId);
 
-        var localId = Guid.NewGuid();
+        var localId = -Random.Shared.Next(1, 1000000);
 
         _db.ClientesMirror.Add(new ClienteMirror
         {
@@ -197,7 +197,7 @@ public class ClientesController : ControllerBase
 
     private static ClienteDto ClienteAnonimo() => new()
     {
-        Id             = AnonimoCLIENTEId,
+        Id             = -Random.Shared.Next(1, 1000000),
         EsAnonimo      = true,
         Nombre         = "Cliente Anónimo",
         LimiteCredito  = 0,

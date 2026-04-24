@@ -288,7 +288,7 @@ public class OperacionPendienteSyncService : BackgroundService
             // Cuando Core devuelve el ID definitivo de una sesión de caja → actualizar SesionCajaMirror
             if (op.TipoEntidad == "Caja" && op.TipoOperacion == "AbrirSesion"
                 && op.IdLocalTemporal is not null
-                && Guid.TryParse(op.IdLocalTemporal, out var idLocal))
+                && int.TryParse(op.IdLocalTemporal, out var idLocal))
             {
                 using var doc = JsonDocument.Parse(respBody);
                 if (doc.RootElement.TryGetProperty("sesionCajaId", out var sesionIdEl)
@@ -311,7 +311,7 @@ public class OperacionPendienteSyncService : BackgroundService
             // Cuando Core devuelve el CoreId de un cliente creado offline → actualizar ClienteMirror
             if (op.TipoEntidad == "Cliente" && op.TipoOperacion == "Crear"
                 && op.IdLocalTemporal is not null
-                && Guid.TryParse(op.IdLocalTemporal, out var clienteLocalId))
+                && int.TryParse(op.IdLocalTemporal, out var clienteLocalId))
             {
                 using var doc = JsonDocument.Parse(respBody);
                 if (doc.RootElement.TryGetProperty("id", out var coreIdEl)
@@ -335,7 +335,7 @@ public class OperacionPendienteSyncService : BackgroundService
             // Cuando Core cierra la sesión de caja definitivamente
             if (op.TipoEntidad == "Caja" && op.TipoOperacion == "CerrarSesion"
                 && op.IdLocalTemporal is not null
-                && Guid.TryParse(op.IdLocalTemporal, out var sesionLocalId))
+                && int.TryParse(op.IdLocalTemporal, out var sesionLocalId))
             {
                 var sesion = await db.SesionesCajaMirror
                     .FirstOrDefaultAsync(s => s.IdLocal == sesionLocalId, ct);

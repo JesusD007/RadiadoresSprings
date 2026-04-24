@@ -2,7 +2,7 @@ namespace IntegrationApp.Contracts.Requests.Ordenes;
 
 public record CrearOrdenRequest
 {
-    public Guid ClienteId { get; init; }
+    public int ClienteId { get; init; }
     public string? Notas { get; init; }
     public DireccionEntregaDto? Entrega { get; init; }
     public IReadOnlyList<LineaOrdenDto> Lineas { get; init; } = [];

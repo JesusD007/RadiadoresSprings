@@ -8,9 +8,9 @@ public class VentaOfflinePendiente
 {
     public long Id { get; set; }
     public Guid IdTransaccionLocal { get; set; }
-    public string CajeroId { get; set; } = string.Empty;
-    public string SucursalId { get; set; } = string.Empty;
-    public Guid ClienteId { get; set; }
+    public int CajeroId { get; set; }
+    public int SucursalId { get; set; }
+    public int ClienteId { get; set; }
     public string MetodoPago { get; set; } = string.Empty;
     public decimal MontoTotal { get; set; }
     public decimal MontoRecibido { get; set; }

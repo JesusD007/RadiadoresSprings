@@ -38,9 +38,9 @@ public class CuentasCobrarController : ControllerBase
     /// OFFLINE: retorna lista vacía con advertencia — no hay mirror de cuentas por cobrar
     ///          (dato financiero demasiado volátil para cachear offline de forma confiable).
     /// </summary>
-    [HttpGet("{clienteId:guid}")]
+    [HttpGet("{clienteId:int}")]
     public async Task<ActionResult<IReadOnlyList<CuentaPorCobrarDto>>> GetCuentasCobrar(
-        Guid clienteId, CancellationToken ct)
+        int clienteId, CancellationToken ct)
     {
         if (_cbState.CoreAvailable)
         {
@@ -74,9 +74,9 @@ public class CuentasCobrarController : ControllerBase
     /// ONLINE:  proxy al Core.
     /// OFFLINE: encola en OperacionPendiente.
     /// </summary>
-    [HttpPost("{clienteId:guid}/abono")]
+    [HttpPost("{clienteId:int}/abono")]
     public async Task<IActionResult> RegistrarAbono(
-        Guid clienteId,
+        int clienteId,
         [FromBody] RegistrarAbonoRequest request,
         CancellationToken ct)
     {

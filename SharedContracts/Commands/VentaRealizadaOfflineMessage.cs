@@ -17,9 +17,9 @@ public record VentaRealizadaOfflineMessage : ICommand
     /// </summary>
     public Guid IdTransaccionLocal { get; init; }
 
-    public string IdCajero { get; init; } = string.Empty;
-    public string IdSucursal { get; init; } = string.Empty;
-    public Guid ClienteId { get; init; }
+    public int IdCajero { get; init; }
+    public int IdSucursal { get; init; }
+    public int ClienteId { get; init; }
     public string MetodoPago { get; init; } = string.Empty;
     public decimal MontoTotal { get; init; }
     public decimal MontoRecibido { get; init; }

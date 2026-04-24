@@ -2,7 +2,7 @@ namespace IntegrationApp.Contracts.Responses.Clientes;
 
 public record ClienteDto
 {
-    public Guid Id { get; init; }
+    public int Id { get; init; }
     public int? CoreId { get; init; }          // ID en Core (null si aún no sincronizado)
     public bool EsAnonimo { get; init; }
     public string Nombre { get; init; } = string.Empty;

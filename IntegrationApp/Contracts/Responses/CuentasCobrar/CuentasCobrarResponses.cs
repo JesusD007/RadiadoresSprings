@@ -2,8 +2,8 @@ namespace IntegrationApp.Contracts.Responses.CuentasCobrar;
 
 public record CuentaPorCobrarDto
 {
-    public Guid Id { get; init; }
-    public Guid FacturaId { get; init; }
+    public int Id { get; init; }
+    public int FacturaId { get; init; }
     public string NumeroFactura { get; init; } = string.Empty;
     public decimal MontoOriginal { get; init; }
     public decimal MontoPendiente { get; init; }

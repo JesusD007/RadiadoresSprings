@@ -2,15 +2,15 @@ namespace IntegrationApp.Contracts.Requests.Caja;
 
 public record InicioDiaRequest
 {
-    public string SucursalId { get; init; } = string.Empty;
-    public string CajeroId { get; init; } = string.Empty;
+    public int SucursalId { get; init; }
+    public int CajeroId { get; init; }
     public decimal MontoInicial { get; init; }
     public DateTimeOffset Fecha { get; init; }
 }
 
 public record MovimientoCajaRequest
 {
-    public Guid SesionCajaId { get; init; }
+    public int SesionCajaId { get; init; }
     public string Tipo { get; init; } = string.Empty;       // "IN" | "OUT"
     public decimal Monto { get; init; }
     public string Motivo { get; init; } = string.Empty;
@@ -19,6 +19,6 @@ public record MovimientoCajaRequest
 
 public record CierreDiaRequest
 {
-    public Guid SesionCajaId { get; init; }
+    public int SesionCajaId { get; init; }
     public decimal MontoContadoEfectivo { get; init; }
 }

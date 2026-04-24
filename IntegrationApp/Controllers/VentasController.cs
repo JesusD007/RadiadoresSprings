@@ -137,7 +137,7 @@ public class VentasController : ControllerBase
 
         return StatusCode(201, new VentaResponse
         {
-            FacturaId = Guid.NewGuid(),
+            FacturaId = -Random.Shared.Next(1, 1000000),
             NumeroFactura = $"OFFLINE-{idGuid:N[..8]}",
             Subtotal = ventaOffline.MontoTotal,
             Itbis = ventaOffline.MontoTotal * 0.18m,

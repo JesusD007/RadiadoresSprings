@@ -2,9 +2,9 @@ namespace IntegrationApp.Contracts.Requests.Ventas;
 
 public record CrearVentaRequest
 {
-    public Guid ClienteId { get; init; }
-    public string CajeroId { get; init; } = string.Empty;
-    public string SucursalId { get; init; } = string.Empty;
+    public int ClienteId { get; init; }
+    public int CajeroId { get; init; }
+    public int SucursalId { get; init; }
     public string MetodoPago { get; init; } = string.Empty;  // "Efectivo" | "Tarjeta" | "Transferencia"
     public decimal MontoRecibido { get; init; }
     public IReadOnlyList<LineaVentaDto> Lineas { get; init; } = [];

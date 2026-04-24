@@ -11,7 +11,7 @@ public class SesionCajaMirror
     public long Id { get; set; }
 
     /// <summary>GUID local generado al crear la sesión offline. Idempotency key al sincronizar.</summary>
-    public Guid IdLocal { get; set; } = Guid.NewGuid();
+    public int IdLocal { get; set; }
 
     /// <summary>ID de la caja (sincronizado desde Core via CajaMirror, o conocido de antemano).</summary>
     public int CajaId { get; set; }

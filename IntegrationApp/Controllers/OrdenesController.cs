@@ -92,7 +92,7 @@ public class OrdenesController : ControllerBase
 
         return Accepted(new OrdenCreadaResponse
         {
-            OrdenId = idLocal,
+            OrdenId = -Random.Shared.Next(1, 1000000),
             Estado  = "PendienteSync",
             Total   = request.Lineas.Sum(l => l.Cantidad * 0m), // total desconocido offline
             PollUrl = $"{Request.Scheme}://{Request.Host}/api/v1/ordenes/{idLocal}/estado"
@@ -130,7 +130,7 @@ public class OrdenesController : ControllerBase
 
         return Ok(new EstadoOrdenDto
         {
-            OrdenId  = id,
+            OrdenId  = -Random.Shared.Next(1, 1000000),
             Estado   = "PendienteSync",
             Mensaje  = "Orden registrada localmente. Se procesará cuando el sistema central esté disponible.",
             Offline  = true

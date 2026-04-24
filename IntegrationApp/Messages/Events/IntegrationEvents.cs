@@ -35,7 +35,7 @@ public record VentaSincronizadaEvent : IEvent
 /// </summary>
 public record ReconciliacionCompletadaEvent : IEvent
 {
-    public string SucursalId { get; init; } = string.Empty;
+    public int SucursalId { get; init; }
     public int TotalTransacciones { get; init; }
     public int Aplicadas { get; init; }
     public int Rechazadas { get; init; }

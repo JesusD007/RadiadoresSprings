@@ -81,7 +81,7 @@ public class PagosController : ControllerBase
 
         return Accepted(new SimularPagoResponse
         {
-            TransaccionId = localId,
+            TransaccionId = -Random.Shared.Next(1, 1000000),
             Estado        = "PendienteSync",
             Monto         = request.Monto,
             MetodoPago    = request.MetodoPago,

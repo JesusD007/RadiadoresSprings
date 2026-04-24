@@ -2,7 +2,7 @@ namespace IntegrationApp.Contracts.Responses.Ventas;
 
 public record VentaResponse
 {
-    public Guid FacturaId { get; init; }
+    public int FacturaId { get; init; }
     public string NumeroFactura { get; init; } = string.Empty;
     public decimal Subtotal { get; init; }
     public decimal Itbis { get; init; }

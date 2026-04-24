@@ -2,7 +2,7 @@ namespace IntegrationApp.Contracts.Responses.Ordenes;
 
 public record OrdenCreadaResponse
 {
-    public Guid OrdenId { get; init; }
+    public int OrdenId { get; init; }
     public string Estado { get; init; } = "Pendiente";
     public decimal Total { get; init; }
     public string PollUrl { get; init; } = string.Empty;
@@ -10,7 +10,7 @@ public record OrdenCreadaResponse
 
 public record EstadoOrdenDto
 {
-    public Guid OrdenId { get; init; }
+    public int OrdenId { get; init; }
     public string Estado { get; init; } = string.Empty;  // "Pendiente" | "Procesando" | "Listo" | "Entregado" | "Cancelado" | "PendienteSync"
     public string? Mensaje { get; init; }
     public bool Offline { get; init; }

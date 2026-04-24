@@ -13,7 +13,7 @@ public class ClienteMirror
     public int? CoreId { get; set; }
 
     /// <summary>ID local generado offline (usado como PK hasta que Core asigne el definitivo).</summary>
-    public Guid LocalId { get; set; } = Guid.NewGuid();
+    public int LocalId { get; set; }
 
     public string Nombre { get; set; } = string.Empty;
     public string? Apellido { get; set; }

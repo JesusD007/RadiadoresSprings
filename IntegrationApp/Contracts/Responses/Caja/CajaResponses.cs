@@ -2,14 +2,14 @@ namespace IntegrationApp.Contracts.Responses.Caja;
 
 public record InicioDiaResponse
 {
-    public Guid SesionCajaId { get; init; }
+    public int SesionCajaId { get; init; }
     public string Estado { get; init; } = string.Empty;
     public DateTimeOffset Inicio { get; init; }
 }
 
 public record MovimientoCajaResponse
 {
-    public Guid MovimientoId { get; init; }
+    public int MovimientoId { get; init; }
     public decimal SaldoActual { get; init; }
     public DateTimeOffset FechaHora { get; init; }
 }

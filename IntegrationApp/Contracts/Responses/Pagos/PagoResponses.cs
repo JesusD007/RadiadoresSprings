@@ -2,7 +2,7 @@ namespace IntegrationApp.Contracts.Responses.Pagos;
 
 public record SimularPagoResponse
 {
-    public Guid TransaccionId { get; init; }
+    public int TransaccionId { get; init; }
     public string Resultado { get; init; } = string.Empty;   // "Aprobado" | "Rechazado" | "PendienteSync"
     public string? Estado { get; init; }                     // Campo alternativo usado en modo offline
     public decimal Monto { get; init; }

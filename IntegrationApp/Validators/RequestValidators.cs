@@ -22,8 +22,8 @@ public class CrearVentaRequestValidator : AbstractValidator<CrearVentaRequest>
     public CrearVentaRequestValidator()
     {
         RuleFor(x => x.ClienteId).NotEmpty();
-        RuleFor(x => x.CajeroId).NotEmpty().MaximumLength(100);
-        RuleFor(x => x.SucursalId).NotEmpty().MaximumLength(50);
+        RuleFor(x => x.CajeroId).NotEmpty();
+        RuleFor(x => x.SucursalId).NotEmpty();
         RuleFor(x => x.MetodoPago).NotEmpty()
             .Must(m => m is "Efectivo" or "Tarjeta" or "Transferencia")
             .WithMessage("MetodoPago debe ser: Efectivo, Tarjeta o Transferencia");
