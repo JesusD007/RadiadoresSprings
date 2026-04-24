@@ -60,7 +60,7 @@ public record SesionCajaResponse(
 public record OrdenResponse(
     int Id, string NumeroOrden, int ClienteId, string NombreCliente,
     string Estado, DateTime Fecha, DateTime? FechaEntrega,
-    decimal TotalOrden, string MetodoPago, string? DireccionEnvio,
+    decimal TotalOrden, int CantidadProductos, string MetodoPago, string? DireccionEnvio,
     List<LineaOrdenResponse> Lineas);
 
 public record LineaOrdenResponse(

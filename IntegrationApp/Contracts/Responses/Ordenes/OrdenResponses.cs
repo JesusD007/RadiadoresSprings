@@ -25,3 +25,14 @@ public record HistorialEstadoDto
     public DateTimeOffset Fecha { get; init; }
     public string? Nota { get; init; }
 }
+
+public record OrdenResponse(
+    int Id, string NumeroOrden, int ClienteId, string NombreCliente,
+    string Estado, DateTime Fecha, DateTime? FechaEntrega, decimal TotalOrden,
+    int CantidadProductos,
+    string MetodoPago, string? DireccionEnvio,
+    List<LineaOrdenResponse> Lineas);
+
+public record LineaOrdenResponse(
+    int Id, int ProductoId, string CodigoProducto, string NombreProducto,
+    int Cantidad, decimal PrecioUnitario, decimal Subtotal);

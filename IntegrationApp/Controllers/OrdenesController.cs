@@ -194,4 +194,31 @@ public class OrdenesController : ControllerBase
             Offline  = true
         });
     }
+
+    // ── GET /api/v1/ordenes/cliente/{clienteId} ─────────────────────────────
+
+    /// <summary>
+    /// Órdenes de un cliente.
+    /// ONLINE:  proxy al Core.
+    /// OFFLINE: Retorna error de disponibilidad.
+    /// </summary>
+    [HttpGet("cliente/{clienteId:int}")]
+    public async Task<ActionResult<IEnumerable<OrdenResponse>>> GetByCliente(int clienteId, CancellationToken ct)
+    {
+        if (_cbState.CoreAvailable)
+        {
+            var response = await _core.GetAsync($"/api/v1/ordenes/cliente/{clienteId}", bearerToken: Token, ct: ct);
+            var content = await response.Content.ReadAsStringAsync(ct);
+
+            if (response.IsSuccessStatusCode)
+            {
+                // El Core devuelve un ApiResponse<IEnumerable<OrdenResponse>>
+                return Ok(ProxyHelper.Unwrap<IEnumerable<OrdenResponse>>(content, _json));
+            }
+
+            return StatusCode((int)response.StatusCode, JsonSerializer.Deserialize<object>(content, _json));
+        }
+
+        return StatusCode(503, new { error = "El sistema central no está disponible para consultar el historial de órdenes del cliente." });
+    }
 }

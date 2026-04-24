@@ -286,6 +286,7 @@ public class OrdenService(CoreDbContext db, IMessageSession bus, ILogger<OrdenSe
         o.Id, o.NumeroOrden, o.ClienteId,
         o.Cliente is null ? "-" : $"{o.Cliente.Nombre} {o.Cliente.Apellido}".Trim(),
         o.Estado.ToString(), o.Fecha, o.FechaEntrega, o.TotalOrden,
+        o.Lineas.Sum(l => l.Cantidad),
         o.MetodoPago.ToString(), o.DireccionEnvio,
         o.Lineas.Select(l => new LineaOrdenResponse(l.Id, l.ProductoId,
             l.Producto?.Nombre ?? "-", l.Cantidad, l.PrecioUnitario, l.Subtotal)).ToList());
