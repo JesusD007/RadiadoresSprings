@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace IntegrationApp.Migrations
 {
     [DbContext(typeof(IntegrationDbContext))]
-    [Migration("20260423043322_AddCatalogMirrors")]
-    partial class AddCatalogMirrors
+    [Migration("20260424024405_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -78,8 +78,8 @@ namespace IntegrationApp.Migrations
 
             modelBuilder.Entity("IntegrationApp.Domain.Entities.ClienteMirror", b =>
                 {
-                    b.Property<Guid>("LocalId")
-                        .HasColumnType("uuid");
+                    b.Property<int>("LocalId")
+                        .HasColumnType("integer");
 
                     b.Property<string>("Apellido")
                         .HasMaxLength(150)
@@ -189,8 +189,8 @@ namespace IntegrationApp.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
-                    b.Property<Guid?>("FacturaIdCore")
-                        .HasColumnType("uuid");
+                    b.Property<int?>("FacturaIdCore")
+                        .HasColumnType("integer");
 
                     b.Property<DateTimeOffset?>("FechaConfirmacion")
                         .HasColumnType("timestamp with time zone");
@@ -439,8 +439,8 @@ namespace IntegrationApp.Migrations
                     b.Property<DateTimeOffset?>("FechaCierre")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid>("IdLocal")
-                        .HasColumnType("uuid");
+                    b.Property<int>("IdLocal")
+                        .HasColumnType("integer");
 
                     b.Property<decimal>("MontoApertura")
                         .HasPrecision(18, 2)
@@ -562,13 +562,12 @@ namespace IntegrationApp.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
-                    b.Property<string>("CajeroId")
-                        .IsRequired()
+                    b.Property<int>("CajeroId")
                         .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                        .HasColumnType("integer");
 
-                    b.Property<Guid>("ClienteId")
-                        .HasColumnType("uuid");
+                    b.Property<int>("ClienteId")
+                        .HasColumnType("integer");
 
                     b.Property<string>("Estado")
                         .IsRequired()
@@ -603,10 +602,9 @@ namespace IntegrationApp.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
 
-                    b.Property<string>("SucursalId")
-                        .IsRequired()
+                    b.Property<int>("SucursalId")
                         .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
+                        .HasColumnType("integer");
 
                     b.Property<DateTimeOffset?>("UltimoIntento")
                         .HasColumnType("timestamp with time zone");
