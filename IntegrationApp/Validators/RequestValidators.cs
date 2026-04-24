@@ -43,6 +43,7 @@ public class CrearOrdenRequestValidator : AbstractValidator<CrearOrdenRequest>
     public CrearOrdenRequestValidator()
     {
         RuleFor(x => x.ClienteId).NotEmpty();
+        RuleFor(x => x.MetodoPago).NotEmpty().MaximumLength(50);
         RuleFor(x => x.Lineas).NotEmpty().WithMessage("La orden debe tener al menos una línea");
         RuleForEach(x => x.Lineas).ChildRules(linea =>
         {

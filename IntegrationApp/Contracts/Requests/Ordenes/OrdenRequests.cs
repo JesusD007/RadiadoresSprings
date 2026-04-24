@@ -1,23 +1,8 @@
 namespace IntegrationApp.Contracts.Requests.Ordenes;
 
-public record CrearOrdenRequest
-{
-    public int ClienteId { get; init; }
-    public string? Notas { get; init; }
-    public DireccionEntregaDto? Entrega { get; init; }
-    public IReadOnlyList<LineaOrdenDto> Lineas { get; init; } = [];
-}
+public record CrearOrdenRequest(
+    int ClienteId, string MetodoPago, string? DireccionEnvio,
+    List<LineaOrdenRequest> Lineas, string? Notas = null);
 
-public record DireccionEntregaDto
-{
-    public string Calle { get; init; } = string.Empty;
-    public string Ciudad { get; init; } = string.Empty;
-    public string? Provincia { get; init; }
-    public string? CodigoPostal { get; init; }
-}
+public record LineaOrdenRequest(int ProductoId, int Cantidad);
 
-public record LineaOrdenDto
-{
-    public int ProductoId { get; init; }
-    public int Cantidad { get; init; }
-}
