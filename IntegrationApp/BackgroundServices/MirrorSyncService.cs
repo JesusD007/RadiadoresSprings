@@ -282,7 +282,7 @@ public class MirrorSyncService : BackgroundService
                     {
                         db.ClientesMirror.Add(new ClienteMirror
                         {
-                            LocalId        = -Random.Shared.Next(1, 1000000),
+                            LocalId        = item.Id,
                             CoreId         = item.Id,
                             Nombre         = item.Nombre,
                             Apellido       = item.Apellido,
