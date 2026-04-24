@@ -485,6 +485,9 @@ public class MirrorSyncService : BackgroundService
 
                 foreach (var item in result.Items)
                 {
+                    // Convertir DateTimeOffset → DateTime UTC para la entidad
+                    var fechaUtc = item.FechaVencimiento.UtcDateTime;
+
                     var existing = await db.CuentasCobrarMirror.FindAsync([item.Id], ct);
                     if (existing is null)
                     {
@@ -492,7 +495,7 @@ public class MirrorSyncService : BackgroundService
                         {
                             CoreId = item.Id, VentaId = item.VentaId, ClienteId = item.ClienteId,
                             MontoTotal = item.MontoTotal, SaldoPendiente = item.SaldoPendiente,
-                            FechaVencimiento = item.FechaVencimiento, Estado = item.Estado,
+                            FechaVencimiento = fechaUtc, Estado = item.Estado,
                             UltimaSync = DateTime.UtcNow
                         });
                     }
@@ -500,7 +503,7 @@ public class MirrorSyncService : BackgroundService
                     {
                         existing.VentaId = item.VentaId; existing.ClienteId = item.ClienteId;
                         existing.MontoTotal = item.MontoTotal; existing.SaldoPendiente = item.SaldoPendiente;
-                        existing.FechaVencimiento = item.FechaVencimiento; existing.Estado = item.Estado;
+                        existing.FechaVencimiento = fechaUtc; existing.Estado = item.Estado;
                         existing.UltimaSync = DateTime.UtcNow;
                     }
                     total++;
@@ -559,6 +562,9 @@ public class MirrorSyncService : BackgroundService
     private record CajaItemRaw(int Id, int SucursalId, string NombreSucursal, string Numero, string Nombre, bool EsActiva);
     
     private record CuentaCobrarPagedResultRaw(List<CuentaCobrarItemRaw>? Items, int Total, int Page, int PageSize);
-    private record CuentaCobrarItemRaw(int Id, int VentaId, int ClienteId, decimal MontoTotal, 
-        decimal SaldoPendiente, DateTime FechaVencimiento, string Estado);
+    // FechaVencimiento como DateTimeOffset para capturar correctamente el offset
+    // del Core. Si el JSON no incluye offset (e.g. "2026-05-15T00:00:00"),
+    // DateTimeOffset lo interpreta con offset 0 (UTC), evitando Kind=Unspecified.
+    private record CuentaCobrarItemRaw(int Id, int VentaId, int ClienteId, decimal MontoTotal,
+        decimal SaldoPendiente, DateTimeOffset FechaVencimiento, string Estado);
 }

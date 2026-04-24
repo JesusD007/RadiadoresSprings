@@ -18,6 +18,15 @@ using Serilog.Events;
 using System.Text;
 
 // ─────────────────────────────────────────────────────────────────────────────
+// NPGSQL — Compatibilidad global de DateTime con PostgreSQL timestamptz
+// Npgsql 8+ rechaza DateTime con Kind=Unspecified en columnas timestamp with
+// time zone. Este switch hace que los valores sin Kind se traten como UTC,
+// cubriendo fechas deserializadas desde JSON del Core (Core API devuelve
+// fechas ISO 8601 sin sufijo Z en algunos endpoints).
+// ─────────────────────────────────────────────────────────────────────────────
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
+// ─────────────────────────────────────────────────────────────────────────────
 // BOOTSTRAP SERILOG (antes del host para capturar errores de startup)
 // ─────────────────────────────────────────────────────────────────────────────
 Log.Logger = new LoggerConfiguration()

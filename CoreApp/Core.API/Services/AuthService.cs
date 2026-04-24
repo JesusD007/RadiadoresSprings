@@ -25,6 +25,21 @@ public class AuthService(CoreDbContext db, IConfiguration config, ILogger<AuthSe
             return null;
         }
 
+        // Auto-reparación: si el usuario es Cliente y aún no tiene ClienteId vinculado,
+        // lo buscamos por email en la tabla Clientes y lo enlazamos ahora.
+        // Esto cubre usuarios creados antes de que existiera la columna ClienteId.
+        if (usuario.Rol == RolUsuario.Cliente && usuario.ClienteId is null)
+        {
+            var cliente = await db.Clientes
+                .FirstOrDefaultAsync(c => c.Email == usuario.Email && c.EsActivo);
+            if (cliente is not null)
+            {
+                usuario.ClienteId = cliente.Id;
+                logger.LogInformation("🔗 ClienteId {ClienteId} vinculado automáticamente a usuario '{Username}'",
+                    cliente.Id, usuario.Username);
+            }
+        }
+
         usuario.UltimoAcceso = DateTime.UtcNow;
         var (token, expiry) = GenerarToken(usuario);
         var refresh = GenerarRefreshToken();

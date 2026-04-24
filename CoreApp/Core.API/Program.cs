@@ -208,6 +208,7 @@ try
         var db = scope.ServiceProvider.GetRequiredService<CoreDbContext>();
         Log.Information("⚙️ Creando/verificando base de datos SQL Server...");
         await db.Database.EnsureCreatedAsync();
+        await AplicarEsquemaIncrementalAsync(db);
         await SeedAsync(db);
         Log.Information("✅ Base de datos lista.");
     }
@@ -239,6 +240,30 @@ catch (Exception ex)
 finally
 {
     Log.CloseAndFlush();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Migraciones incrementales de esquema — idempotentes.
+// Necesarias porque EnsureCreated solo crea la BD si no existe; no aplica
+// columnas nuevas agregadas después del despliegue inicial.
+// ─────────────────────────────────────────────────────────────────────────────
+static async Task AplicarEsquemaIncrementalAsync(CoreDbContext db)
+{
+    // Agrega ClienteId a Usuarios si no existe (columna añadida en v2).
+    // Idempotente: el bloque IF NOT EXISTS garantiza que no falla si ya existe.
+    await db.Database.ExecuteSqlRawAsync("""
+        IF NOT EXISTS (
+            SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_NAME = 'Usuarios' AND COLUMN_NAME = 'ClienteId'
+        )
+        BEGIN
+            ALTER TABLE Usuarios ADD ClienteId INT NULL;
+            ALTER TABLE Usuarios ADD CONSTRAINT FK_Usuarios_Clientes_ClienteId
+                FOREIGN KEY (ClienteId) REFERENCES Clientes(Id) ON DELETE SET NULL;
+        END
+        """);
+
+    Log.Information("✅ Esquema incremental verificado.");
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
