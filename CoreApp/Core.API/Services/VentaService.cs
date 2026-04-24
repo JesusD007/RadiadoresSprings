@@ -77,94 +77,98 @@ public class VentaService(
             }
         }
 
-        await using var tx = await db.Database.BeginTransactionAsync();
-        try
+        var strategy = db.Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync(async () =>
         {
-            var lineas = new List<LineaVenta>();
-            var stocksAnteriores = new Dictionary<int, int>(); // productoId → stock previo
-            decimal subtotal = 0;
-
-            foreach (var item in req.Lineas)
+            await using var tx = await db.Database.BeginTransactionAsync();
+            try
             {
-                var producto = await db.Productos.FindAsync(item.ProductoId)
-                    ?? throw new InvalidOperationException($"Producto {item.ProductoId} no encontrado.");
+                var lineas = new List<LineaVenta>();
+                var stocksAnteriores = new Dictionary<int, int>(); // productoId → stock previo
+                decimal subtotal = 0;
 
-                stocksAnteriores[producto.Id] = producto.Stock;
-
-                if (!producto.ReducirStock(item.Cantidad))
-                    throw new InvalidOperationException(
-                        $"Stock insuficiente para '{producto.Nombre}'. Disponible: {producto.Stock}");
-
-                var precio = item.PrecioOverride ?? producto.PrecioVigente();
-                var linea = new LineaVenta
+                foreach (var item in req.Lineas)
                 {
-                    ProductoId = producto.Id,
-                    Cantidad = item.Cantidad,
-                    PrecioUnitario = precio
+                    var producto = await db.Productos.FindAsync(item.ProductoId)
+                        ?? throw new InvalidOperationException($"Producto {item.ProductoId} no encontrado.");
+
+                    stocksAnteriores[producto.Id] = producto.Stock;
+
+                    if (!producto.ReducirStock(item.Cantidad))
+                        throw new InvalidOperationException(
+                            $"Stock insuficiente para '{producto.Nombre}'. Disponible: {producto.Stock}");
+
+                    var precio = item.PrecioOverride ?? producto.PrecioVigente();
+                    var linea = new LineaVenta
+                    {
+                        ProductoId = producto.Id,
+                        Cantidad = item.Cantidad,
+                        PrecioUnitario = precio
+                    };
+                    lineas.Add(linea);
+                    subtotal += linea.Subtotal;
+                }
+
+                var iva = subtotal * 0.16m;
+                var total = subtotal + iva - req.Descuento;
+                var numero = await GenerarNumeroFacturaAsync();
+
+                var metodo = Enum.TryParse<MetodoPago>(req.MetodoPago, true, out var mp) ? mp : MetodoPago.Efectivo;
+
+                var venta = new Venta
+                {
+                    NumeroFactura = numero,
+                    SucursalId = req.SucursalId,
+                    CajaId = req.CajaId,
+                    SesionCajaId = req.SesionCajaId,
+                    ClienteId = req.ClienteId,
+                    UsuarioId = usuarioId,
+                    Subtotal = subtotal,
+                    IVA = iva,
+                    Total = total,
+                    Descuento = req.Descuento,
+                    MetodoPago = metodo,
+                    IdTransaccionLocal = req.IdTransaccionLocal,
+                    Observaciones = req.Observaciones
                 };
-                lineas.Add(linea);
-                subtotal += linea.Subtotal;
+
+                db.Ventas.Add(venta);
+                await db.SaveChangesAsync();
+
+                foreach (var l in lineas) l.VentaId = venta.Id;
+                db.LineasVenta.AddRange(lineas);
+                await db.SaveChangesAsync();
+
+                await tx.CommitAsync();
+
+                logger.LogInformation("🧾 Venta creada: {Factura} | Total: {Total:C}", numero, total);
+
+                // ── Publicar InventarioActualizadoEvent por cada producto vendido ──
+                foreach (var linea in lineas)
+                {
+                    var producto = await db.Productos.FindAsync(linea.ProductoId);
+                    if (producto is null) continue;
+
+                    await PublicarInventarioAsync(producto,
+                        stockAnterior: stocksAnteriores[linea.ProductoId],
+                        motivo: "Venta");
+                }
+
+                var ventaCompleta = await GetByIdAsync(venta.Id)
+                    ?? throw new InvalidOperationException("Error recuperando venta creada.");
+
+                // ── Si fue una venta offline sincronizada, confirmar al saga ──────
+                if (Guid.TryParse(req.IdTransaccionLocal, out var txGuid))
+                    await PublicarVentaAplicadaAsync(txGuid, venta);
+
+                return ventaCompleta;
             }
-
-            var iva = subtotal * 0.16m;
-            var total = subtotal + iva - req.Descuento;
-            var numero = await GenerarNumeroFacturaAsync();
-
-            var metodo = Enum.TryParse<MetodoPago>(req.MetodoPago, true, out var mp) ? mp : MetodoPago.Efectivo;
-
-            var venta = new Venta
+            catch
             {
-                NumeroFactura = numero,
-                SucursalId = req.SucursalId,
-                CajaId = req.CajaId,
-                SesionCajaId = req.SesionCajaId,
-                ClienteId = req.ClienteId,
-                UsuarioId = usuarioId,
-                Subtotal = subtotal,
-                IVA = iva,
-                Total = total,
-                Descuento = req.Descuento,
-                MetodoPago = metodo,
-                IdTransaccionLocal = req.IdTransaccionLocal,
-                Observaciones = req.Observaciones
-            };
-
-            db.Ventas.Add(venta);
-            await db.SaveChangesAsync();
-
-            foreach (var l in lineas) l.VentaId = venta.Id;
-            db.LineasVenta.AddRange(lineas);
-            await db.SaveChangesAsync();
-
-            await tx.CommitAsync();
-
-            logger.LogInformation("🧾 Venta creada: {Factura} | Total: {Total:C}", numero, total);
-
-            // ── Publicar InventarioActualizadoEvent por cada producto vendido ──
-            foreach (var linea in lineas)
-            {
-                var producto = await db.Productos.FindAsync(linea.ProductoId);
-                if (producto is null) continue;
-
-                await PublicarInventarioAsync(producto,
-                    stockAnterior: stocksAnteriores[linea.ProductoId],
-                    motivo: "Venta");
+                await tx.RollbackAsync();
+                throw;
             }
-
-            var ventaCompleta = await GetByIdAsync(venta.Id)
-                ?? throw new InvalidOperationException("Error recuperando venta creada.");
-
-            // ── Si fue una venta offline sincronizada, confirmar al saga ──────
-            if (Guid.TryParse(req.IdTransaccionLocal, out var txGuid))
-                await PublicarVentaAplicadaAsync(txGuid, venta);
-
-            return ventaCompleta;
-        }
-        catch
-        {
-            await tx.RollbackAsync();
-            throw;
-        }
+        });
     }
 
     public async Task<bool> CancelarAsync(int id, string motivo)

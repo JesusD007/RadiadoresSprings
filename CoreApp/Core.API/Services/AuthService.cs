@@ -103,41 +103,45 @@ public class AuthService(CoreDbContext db, IConfiguration config, ILogger<AuthSe
         if (await db.Usuarios.AnyAsync(u => u.Email == req.Email))
             throw new InvalidOperationException($"El email '{req.Email}' ya existe en Usuarios.");
 
-        using var tx = await db.Database.BeginTransactionAsync();
-        try
+        var strategy = db.Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync(async () =>
         {
-            var usuario = new Usuario
+            using var tx = await db.Database.BeginTransactionAsync();
+            try
             {
-                Username = req.Username,
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.Password),
-                Nombre = req.Nombre,
-                Apellido = req.Apellido,
-                Email = req.Email,
-                Rol = RolUsuario.Cliente,
-                SucursalId = 1 // Sucursal principal por defecto para la web
-            };
-            db.Usuarios.Add(usuario);
+                var usuario = new Usuario
+                {
+                    Username = req.Username,
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.Password),
+                    Nombre = req.Nombre,
+                    Apellido = req.Apellido,
+                    Email = req.Email,
+                    Rol = RolUsuario.Cliente,
+                    SucursalId = 1 // Sucursal principal por defecto para la web
+                };
+                db.Usuarios.Add(usuario);
 
-            var cliente = new Cliente
+                var cliente = new Cliente
+                {
+                    Nombre = req.Nombre,
+                    Apellido = req.Apellido,
+                    Email = req.Email,
+                    Tipo = TipoCliente.Regular
+                };
+                db.Clientes.Add(cliente);
+
+                await db.SaveChangesAsync();
+                await tx.CommitAsync();
+
+                await db.Entry(usuario).Reference(u => u.Sucursal).LoadAsync();
+                return MapUsuario(usuario);
+            }
+            catch
             {
-                Nombre = req.Nombre,
-                Apellido = req.Apellido,
-                Email = req.Email,
-                Tipo = TipoCliente.Regular
-            };
-            db.Clientes.Add(cliente);
-
-            await db.SaveChangesAsync();
-            await tx.CommitAsync();
-
-            await db.Entry(usuario).Reference(u => u.Sucursal).LoadAsync();
-            return MapUsuario(usuario);
-        }
-        catch
-        {
-            await tx.RollbackAsync();
-            throw;
-        }
+                await tx.RollbackAsync();
+                throw;
+            }
+        });
     }
 
     public async Task<IEnumerable<UsuarioMirrorResponse>> GetUsuariosMirrorAsync()
