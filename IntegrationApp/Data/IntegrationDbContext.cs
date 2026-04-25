@@ -1,11 +1,24 @@
 using IntegrationApp.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace IntegrationApp.Data;
 
 public class IntegrationDbContext : DbContext
 {
     public IntegrationDbContext(DbContextOptions<IntegrationDbContext> options) : base(options) { }
+
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        base.OnConfiguring(optionsBuilder);
+
+        // EF Core 9 valida el modelo compilado contra el snapshot de migraciones
+        // en runtime. Diferencias sutiles de plataforma (Windows → Linux Docker)
+        // en las anotaciones de Npgsql causan falsos positivos.
+        // Suprimir PendingModelChangesWarning evita el crash en startup.
+        optionsBuilder.ConfigureWarnings(w =>
+            w.Ignore(RelationalEventId.PendingModelChangesWarning));
+    }
 
     // ── Mirrors (réplicas de Core — fuente de verdad cuando Core está activo) ─
     public DbSet<ProductoMirror> ProductosMirror => Set<ProductoMirror>();
