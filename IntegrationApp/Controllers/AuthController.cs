@@ -29,25 +29,54 @@ public class AuthController : ControllerBase
 
     /// <summary>
     /// Autenticar usuario.
-    /// MODO ONLINE:  proxy al Core — fuente de verdad absoluta.
+    /// MODO ONLINE:  proxy al Core — extrae datos clave y retorna respuesta unificada.
     /// MODO OFFLINE: valida contra UsuarioMirror con BCrypt; emite JWT con las mismas claves del Core.
+    /// Ambos modos retornan clienteId en la raíz de la respuesta.
     /// </summary>
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request, CancellationToken ct)
     {
-        // ── MODO ONLINE: Core disponible → siempre delegar al Core ─────────────
+        // ── MODO ONLINE: Core disponible → delegar al Core ─────────────────────
         if (_cbState.CoreAvailable)
         {
             var response = await _core.PostAsync("/api/v1/auth/login", request, ct: ct);
             var content = await response.Content.ReadAsStringAsync(ct);
 
-            return response.StatusCode switch
+            if (!response.IsSuccessStatusCode)
             {
-                System.Net.HttpStatusCode.OK           => Ok(JsonSerializer.Deserialize<object>(content, _json)),
-                System.Net.HttpStatusCode.Unauthorized => Unauthorized(JsonSerializer.Deserialize<object>(content, _json)),
-                System.Net.HttpStatusCode.Locked       => StatusCode(423, JsonSerializer.Deserialize<object>(content, _json)),
-                _ => StatusCode((int)response.StatusCode, JsonSerializer.Deserialize<object>(content, _json))
-            };
+                return response.StatusCode switch
+                {
+                    System.Net.HttpStatusCode.Unauthorized => Unauthorized(JsonSerializer.Deserialize<object>(content, _json)),
+                    System.Net.HttpStatusCode.Locked       => StatusCode(423, JsonSerializer.Deserialize<object>(content, _json)),
+                    _ => StatusCode((int)response.StatusCode, JsonSerializer.Deserialize<object>(content, _json))
+                };
+            }
+
+            // Parsear la respuesta del Core para extraer clienteId del usuario
+            // Core retorna: { exito, mensaje, data: { token, refreshToken, expiry, usuario: { clienteId, ... } } }
+            var doc = JsonDocument.Parse(content);
+            var data = doc.RootElement.GetProperty("data");
+
+            var token        = data.GetProperty("token").GetString();
+            var refreshToken = data.GetProperty("refreshToken").GetString();
+            var expiry       = data.GetProperty("expiry").GetString();
+            var usuario      = data.GetProperty("usuario");
+            var rol          = usuario.GetProperty("rol").GetString();
+            var nombre       = usuario.GetProperty("nombre").GetString();
+            var apellido     = usuario.GetProperty("apellido").GetString();
+            int? clienteId   = usuario.TryGetProperty("clienteId", out var cid) && cid.ValueKind != JsonValueKind.Null
+                                 ? cid.GetInt32() : null;
+
+            return Ok(new
+            {
+                token,
+                refreshToken,
+                expiresAt  = expiry,
+                rol,
+                nombre     = $"{nombre} {apellido}".Trim(),
+                clienteId,
+                offline    = false
+            });
         }
 
         // ── MODO OFFLINE: Core no disponible → autenticación local ─────────────
