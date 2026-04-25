@@ -10,19 +10,13 @@ namespace IntegrationApp.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<int>(
-                name: "ClienteId",
-                table: "UsuarioMirror",
-                type: "integer",
-                nullable: true);
+            // No-op: ClienteId se resuelve por email en runtime (sin columna en UsuarioMirror).
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "ClienteId",
-                table: "UsuarioMirror");
+            // No-op
         }
     }
 }

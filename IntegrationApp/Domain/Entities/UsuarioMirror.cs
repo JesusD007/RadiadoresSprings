@@ -24,11 +24,5 @@ public class UsuarioMirror
     public string? Email { get; set; }
     public bool EsActivo { get; set; }
 
-    /// <summary>
-    /// ID del cliente asociado en Core. Solo aplica para usuarios con rol Cliente.
-    /// Sincronizado desde Core via el endpoint /api/v1/usuarios/mirror.
-    /// </summary>
-    public int? ClienteId { get; set; }
-
     public DateTime UltimaSync { get; set; } = DateTime.UtcNow;
 }

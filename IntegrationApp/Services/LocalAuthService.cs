@@ -63,12 +63,23 @@ public class LocalAuthService : ILocalAuthService
             return null;
         }
 
-        var token = GenerarToken(usuario);
+        // Buscar el ClienteId por email en el mirror de clientes.
+        // No se almacena en UsuarioMirror para evitar migraciones de esquema;
+        // ClientesMirror ya tiene el Email sincronizado desde Core.
+        int? clienteId = null;
+        if (usuario.Rol.Equals("Cliente", StringComparison.OrdinalIgnoreCase) && usuario.Email is not null)
+        {
+            var clienteMirror = await _db.ClientesMirror
+                .FirstOrDefaultAsync(c => c.Email == usuario.Email && c.EsActivo);
+            clienteId = clienteMirror?.CoreId;
+        }
+
+        var token = GenerarToken(usuario, clienteId);
         _logger.LogInformation("[LocalAuth] Login offline exitoso para '{Username}' (modo sin Core)", username);
         return token;
     }
 
-    private LocalAuthResult GenerarToken(Domain.Entities.UsuarioMirror usuario)
+    private LocalAuthResult GenerarToken(Domain.Entities.UsuarioMirror usuario, int? clienteId)
     {
         var key = _config["Jwt:Key"]
             ?? throw new InvalidOperationException("Jwt:Key no configurado");
@@ -106,6 +117,6 @@ public class LocalAuthService : ILocalAuthService
             ExpiresAt: expiresAt,
             Rol: usuario.Rol,
             NombreCompleto: $"{usuario.Nombre} {usuario.Apellido}".Trim(),
-            ClienteId: usuario.ClienteId);
+            ClienteId: clienteId);
     }
 }
