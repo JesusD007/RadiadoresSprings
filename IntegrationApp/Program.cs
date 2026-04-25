@@ -273,19 +273,12 @@ try
     var app = builder.Build();
     // ═════════════════════════════════════════════════════════════════════════
 
-    // ── RESET COMPLETO: borrar BD vieja y recrear con migración limpia ──────
-    // Las migraciones anteriores fueron eliminadas. Se necesita un reset único
-    // para que __EFMigrationsHistory coincida con la nueva InitialCreate.
-    // MirrorSyncService repoblará todos los datos desde Core automáticamente.
-    // TODO: después del primer deploy exitoso, revertir a solo db.Database.Migrate()
+    // ── Aplicar migraciones pendientes al arrancar ───────────────────────────
     using (var scope = app.Services.CreateScope())
     {
         var db = scope.ServiceProvider.GetRequiredService<IntegrationDbContext>();
-        Log.Warning("🗑️ Ejecutando RESET de BD — eliminando esquema anterior...");
-        await db.Database.EnsureDeletedAsync();
-        Log.Information("🔄 Recreando BD con migración limpia...");
         await db.Database.MigrateAsync();
-        Log.Information("✅ BD recreada correctamente. MirrorSync repoblará datos.");
+        Log.Information("✅ Migraciones aplicadas correctamente.");
     }
 
     // Pipeline HTTP
