@@ -90,7 +90,7 @@ public class SyncOfflineSaga : Saga<SyncOfflineSagaData>,
         using var scope = _scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<IntegrationDbContext>();
 
-        // ── BUG #4 CORREGIDO: verificar Y escribir IdempotencyLog ─────────────
+        // ── IDEMPOTENCIA: verificar IdempotencyLog (escenario normal de reentrega) ──
         var yaExiste = await db.IdempotencyLogs
             .AnyAsync(x => x.IdTransaccionLocal == msg.IdTransaccionLocal, ctx.CancellationToken);
 
@@ -101,34 +101,61 @@ public class SyncOfflineSaga : Saga<SyncOfflineSagaData>,
             return;
         }
 
-        // Escribir el log de idempotencia inmediatamente al recibir el mensaje
-        db.IdempotencyLogs.Add(new IdempotencyLog
-        {
-            IdTransaccionLocal = msg.IdTransaccionLocal,
-            Estado = "Recibida",
-            FechaEnvio = DateTimeOffset.UtcNow
-        });
+        // ── IDEMPOTENCIA: verificar VentaOfflinePendiente ────────────────────────
+        // Cubre el escenario donde la venta fue insertada por una versión anterior del
+        // código (sin IdempotencyLog) o tras un fallo parcial post-SaveChangesAsync.
+        // En ese caso el registro ya está en BD: saltamos la inserción y vamos
+        // directo a intentar la sincronización con Core.
+        var ventaYaExiste = await db.VentasOfflinePendientes
+            .AnyAsync(v => v.IdTransaccionLocal == msg.IdTransaccionLocal, ctx.CancellationToken);
 
-        // Guardar venta offline pendiente en la BD local
-        db.VentasOfflinePendientes.Add(new VentaOfflinePendiente
+        if (!ventaYaExiste)
         {
-            IdTransaccionLocal = msg.IdTransaccionLocal,
-            CajeroId = msg.IdCajero,
-            SucursalId = msg.IdSucursal,
-            CajaId = msg.CajaId,
-            SesionCajaId = msg.SesionCajaId,
-            ClienteId = msg.ClienteId,
-            MetodoPago = msg.MetodoPago,
-            MontoTotal = msg.MontoTotal,
-            MontoRecibido = msg.MontoRecibido,
-            Descuento = msg.Descuento,
-            Observaciones = msg.Observaciones,
-            LineasJson = Data.LineasJson,
-            FechaLocal = msg.FechaLocal,
-            Estado = "Pendiente"
-        });
+            // Escribir el log de idempotencia
+            db.IdempotencyLogs.Add(new IdempotencyLog
+            {
+                IdTransaccionLocal = msg.IdTransaccionLocal,
+                Estado = "Recibida",
+                FechaEnvio = DateTimeOffset.UtcNow
+            });
 
-        await db.SaveChangesAsync(ctx.CancellationToken);
+            // Guardar venta offline pendiente en la BD local
+            db.VentasOfflinePendientes.Add(new VentaOfflinePendiente
+            {
+                IdTransaccionLocal = msg.IdTransaccionLocal,
+                CajeroId = msg.IdCajero,
+                SucursalId = msg.IdSucursal,
+                CajaId = msg.CajaId,
+                SesionCajaId = msg.SesionCajaId,
+                ClienteId = msg.ClienteId,
+                MetodoPago = msg.MetodoPago,
+                MontoTotal = msg.MontoTotal,
+                MontoRecibido = msg.MontoRecibido,
+                Descuento = msg.Descuento,
+                Observaciones = msg.Observaciones,
+                LineasJson = Data.LineasJson,
+                FechaLocal = msg.FechaLocal,
+                Estado = "Pendiente"
+            });
+
+            await db.SaveChangesAsync(ctx.CancellationToken);
+        }
+        else
+        {
+            _logger.LogWarning(
+                "[Saga] VentaOfflinePendiente {Id} ya existe en BD (sin IdempotencyLog). " +
+                "Posible fallo post-escritura en versión anterior. Continuando hacia sincronización.",
+                msg.IdTransaccionLocal);
+
+            // Asegurar que el IdempotencyLog quede registrado para futuras reentregas
+            db.IdempotencyLogs.Add(new IdempotencyLog
+            {
+                IdTransaccionLocal = msg.IdTransaccionLocal,
+                Estado = "Recibida",
+                FechaEnvio = DateTimeOffset.UtcNow
+            });
+            await db.SaveChangesAsync(ctx.CancellationToken);
+        }
 
         await IntentarSincronizar(ctx);
     }
