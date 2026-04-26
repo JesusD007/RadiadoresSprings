@@ -8,7 +8,7 @@ public class Orden
     public string NumeroOrden { get; set; } = string.Empty;
     public int ClienteId { get; set; }
     public EstadoOrden Estado { get; set; } = EstadoOrden.Recibida;
-    public DateTime Fecha { get; set; } = DateTime.UtcNow;
+    public DateTime Fecha { get; set; }
     public DateTime? FechaEstimadaEntrega { get; set; }
     public DateTime? FechaEntrega { get; set; }
     public decimal TotalOrden { get; set; }
@@ -21,10 +21,10 @@ public class Orden
     public Cliente Cliente { get; set; } = null!;
     public ICollection<LineaOrden> Lineas { get; set; } = [];
 
-    public void CambiarEstado(EstadoOrden nuevoEstado)
+    public void CambiarEstado(EstadoOrden nuevoEstado, DateTime ahora)
     {
         Estado = nuevoEstado;
         if (nuevoEstado == EstadoOrden.Entregada)
-            FechaEntrega = DateTime.UtcNow;
+            FechaEntrega = ahora;
     }
 }

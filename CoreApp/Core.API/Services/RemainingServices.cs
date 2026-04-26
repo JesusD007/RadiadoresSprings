@@ -197,7 +197,7 @@ public class CajaService(CoreDbContext db, ILogger<CajaService> logger) : ICajaS
 }
 
 // ── OrdenService ──────────────────────────────────────────────────────────────
-public class OrdenService(CoreDbContext db, IMessageSession bus, ILogger<OrdenService> logger) : IOrdenService
+public class OrdenService(CoreDbContext db, IMessageSession bus, ILogger<OrdenService> logger, IClockService clock) : IOrdenService
 {
     public async Task<PagedResult<OrdenResponse>> GetPagedAsync(int pagina, int tamano, string? estado)
     {
@@ -221,11 +221,13 @@ public class OrdenService(CoreDbContext db, IMessageSession bus, ILogger<OrdenSe
 
     public async Task<OrdenResponse> CrearAsync(CrearOrdenRequest req)
     {
+        var ahora  = clock.Now;
         var metodo = Enum.TryParse<MetodoPago>(req.MetodoPago, true, out var mp) ? mp : MetodoPago.Efectivo;
         var orden = new Orden
         {
-            NumeroOrden = $"ORD-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString()[..6].ToUpper()}",
-            ClienteId = req.ClienteId, MetodoPago = metodo,
+            NumeroOrden    = $"ORD-{ahora:yyyyMMdd}-{Guid.NewGuid().ToString()[..6].ToUpper()}",
+            Fecha          = ahora,
+            ClienteId      = req.ClienteId, MetodoPago = metodo,
             DireccionEnvio = req.DireccionEnvio, Notas = req.Notas
         };
 
@@ -256,7 +258,7 @@ public class OrdenService(CoreDbContext db, IMessageSession bus, ILogger<OrdenSe
             throw new InvalidOperationException($"Estado inválido: {req.NuevoEstado}");
 
         var estadoAnterior = orden.Estado.ToString();
-        orden.CambiarEstado(nuevoEstado);
+        orden.CambiarEstado(nuevoEstado, clock.Now);
         await db.SaveChangesAsync();
 
         try

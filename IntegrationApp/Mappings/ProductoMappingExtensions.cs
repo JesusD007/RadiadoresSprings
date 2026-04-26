@@ -8,13 +8,15 @@ public static class ProductoMappingExtensions
     public static ProductoResumenDto ToResumenDto(this ProductoMirror source) =>
         new()
         {
-            Id         = source.Id,
-            Codigo     = source.Codigo,
-            Nombre     = source.Nombre,
-            Precio     = source.Precio,
-            Stock      = source.Stock,
-            Categoria  = source.Categoria ?? "Sin categoría",
-            EsActivo   = source.EsActivo,
+            Id            = source.Id,
+            Codigo        = source.Codigo,
+            Nombre        = source.Nombre,
+            Precio        = source.Precio,
+            PrecioOferta  = source.PrecioOferta,
+            PrecioVigente = source.PrecioVigente(),
+            Stock         = source.Stock,
+            Categoria     = source.Categoria ?? "Sin categoría",
+            EsActivo      = source.EsActivo,
         };
 
     public static ProductoDetalleDto ToDetalleDto(this ProductoMirror source) =>

@@ -15,6 +15,8 @@ public record ProductoResumenDto
     public string Codigo { get; init; } = string.Empty;
     public string Nombre { get; init; } = string.Empty;
     public decimal Precio { get; init; }
+    public decimal? PrecioOferta { get; init; }
+    public decimal PrecioVigente { get; init; }
     public int Stock { get; init; }
     public string Categoria { get; init; } = string.Empty;
     public bool EsActivo { get; init; }

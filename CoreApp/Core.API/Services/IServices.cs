@@ -3,6 +3,13 @@ using Core.API.DTOs.Responses;
 
 namespace Core.API.Services;
 
+// ── Reloj de negocio — abstrae DateTime.UtcNow para respetar zona horaria local ──
+public interface IClockService
+{
+    /// <summary>Fecha y hora actual en la zona horaria configurada (negocio local).</summary>
+    DateTime Now { get; }
+}
+
 public interface IAuthService
 {
     Task<AuthResponse?> LoginAsync(string username, string password);

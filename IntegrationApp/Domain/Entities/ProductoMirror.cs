@@ -14,4 +14,8 @@ public class ProductoMirror
     public decimal? PrecioOferta { get; set; }
     public int StockMinimo { get; set; }
     public int CategoriaId { get; set; }
+
+    // Método de dominio equivalente al de Core.Domain.Entities.Producto
+    public decimal PrecioVigente() =>
+        PrecioOferta.HasValue && PrecioOferta > 0 ? PrecioOferta.Value : Precio;
 }

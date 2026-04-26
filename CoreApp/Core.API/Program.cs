@@ -134,6 +134,9 @@ try
 
     Log.Information("🔐 Políticas de autorización registradas ({Count} políticas)", 10);
 
+    // ── Reloj de negocio (timezone configurado en appsettings → TimeZoneId) ──────
+    builder.Services.AddSingleton<IClockService, ClockService>();
+
     // ── Servicios N-Tier ──────────────────────────────────────────────────────
     builder.Services.AddScoped<IAuthService, AuthService>();
     builder.Services.AddScoped<IProductoService, ProductoService>();
